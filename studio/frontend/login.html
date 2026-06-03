@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wisuno Studio — Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/main.css">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: var(--black);
+      font-family: var(--font-body);
+      color: var(--white);
+    }
+    
+    .login-container {
+      background: rgba(45, 20, 33, 0.4); /* Velvet Noir tint */
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 40px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+    
+    .brand-logo {
+      height: 40px;
+      margin-bottom: 24px;
+    }
+    
+    .login-header {
+      font-family: var(--font-headline);
+      font-size: 28px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    
+    .login-subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--white);
+      font-family: var(--font-body);
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--orange);
+      box-shadow: 0 0 0 2px rgba(255, 103, 0, 0.2);
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--orange);
+      color: var(--black);
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font-headline);
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 10px;
+    }
+    
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 103, 0, 0.3);
+    }
+    
+    .error-msg {
+      color: #ff4444;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <div class="login-header">Wisuno Studio</div>
+    <div class="login-subtitle">Internal Creation Tools</div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required placeholder="admin@wisuno.com">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="login-btn">Log In</button>
+      <div class="error-msg" id="errorMsg">Invalid credentials.</div>
+    </form>
+  </div>
+
+  <script>
+    // These keys are public and safe to expose to the frontend.
+    // They are injected dynamically by the backend, or you can hardcode them here 
+    // since they are safe. For now we will fetch them from the setup endpoint,
+    // or you can just replace them below.
+    
+    // Fallback keys if you want to hardcode them directly:
+    const SUPABASE_URL = "https://wkfwjdwjpavgzugwcgte.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF";
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const btn = document.querySelector('.login-btn');
+      
+      btn.textContent = "Logging in...";
+      btn.disabled = true;
+      errorMsg.style.display = 'none';
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+      
+      if (error) {
+        errorMsg.textContent = error.message;
+        errorMsg.style.display = 'block';
+        btn.textContent = "Log In";
+        btn.disabled = false;
+      } else {
+        window.location.href = "index.html";
+      }
+    });
+    
+    // If already logged in, redirect to index
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        window.location.href = "index.html";
+      }
+    });
+  </script>
+</body>
+</html>

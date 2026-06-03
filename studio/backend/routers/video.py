@@ -14,10 +14,11 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from dependencies.auth import get_current_user
 from services.video_service import (
     STEP_LABELS,
     VIDEO_OUTPUT_ROOT,
@@ -38,7 +39,7 @@ ALLOWED_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv"}
 # ── Upload & start analysis ───────────────────────────────────────────────────
 
 @router.post("/upload")
-async def upload_video(file: UploadFile = File(...)):
+async def upload_video(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     """Upload an MP4 and start the analysis pipeline. Returns job_id."""
     suffix = Path(file.filename or "video.mp4").suffix.lower()
     if suffix not in ALLOWED_EXTS:
@@ -66,7 +67,7 @@ async def upload_video(file: UploadFile = File(...)):
 # ── Status polling ────────────────────────────────────────────────────────────
 
 @router.get("/status/{job_id}")
-async def job_status(job_id: str):
+async def job_status(job_id: str, user: dict = Depends(get_current_user)):
     """Poll analysis + render progress. Returns steps, proposed cuts, probe info."""
     job = get_job(job_id)
     if not job:
@@ -96,7 +97,7 @@ class ApproveRequest(BaseModel):
 
 
 @router.post("/approve/{job_id}")
-async def approve_and_render(job_id: str, req: ApproveRequest):
+async def approve_and_render(job_id: str, req: ApproveRequest, user: dict = Depends(get_current_user)):
     """Submit the approved cut list and kick off the full render pipeline."""
     job = get_job(job_id)
     if not job:
@@ -171,7 +172,7 @@ class RetryRequest(BaseModel):
     include_music:    bool = True
 
 @router.post("/retry/{job_id}")
-async def retry_step(job_id: str, req: RetryRequest):
+async def retry_step(job_id: str, req: RetryRequest, user: dict = Depends(get_current_user)):
     """Retry a failed step in the video pipeline."""
     job = get_job(job_id)
     if not job:

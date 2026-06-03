@@ -12,10 +12,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+from dependencies.auth import get_current_user
 from services.carousel_service import (
     ALL_LANGUAGES,
     LANGUAGE_FLAGS,
@@ -48,7 +49,7 @@ class RunRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/run")
-async def run_carousel(req: RunRequest):
+async def run_carousel(req: RunRequest, user: dict = Depends(get_current_user)):
     """Start a carousel generation job. Returns job_id for polling."""
     if not req.url and not req.text:
         raise HTTPException(400, "Provide either 'url' or 'text'.")
@@ -71,7 +72,7 @@ async def run_carousel(req: RunRequest):
 
 
 @router.get("/status/{job_id}")
-async def job_status(job_id: str):
+async def job_status(job_id: str, user: dict = Depends(get_current_user)):
     """Poll job progress. Returns steps array + status."""
     job = get_job(job_id)
     if not job:

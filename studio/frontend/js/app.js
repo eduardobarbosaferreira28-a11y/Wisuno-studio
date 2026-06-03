@@ -2,6 +2,11 @@
  * app.js — Wisuno Studio client-side router & global utilities
  */
 
+// Fallback keys if the backend setup page hasn't fully loaded them yet
+const SUPABASE_URL = "https://wkfwjdwjpavgzugwcgte.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF";
+window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 /* ── Toast notifications ──────────────────────────────────── */
 const toast = {
   show(message, type = 'info', duration = 4000) {
@@ -63,6 +68,25 @@ const app = {
 
     // Server health ping
     this._pingServer();
+    
+    // Auth Check
+    this._checkAuth();
+  },
+
+  async _checkAuth() {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) {
+      window.location.href = "login.html";
+    }
+    
+    // Wire logout button
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await window.supabaseClient.auth.signOut();
+        window.location.href = "login.html";
+      });
+    }
   },
 
   async _pingServer() {
@@ -91,9 +115,17 @@ const app = {
 async function apiFetch(path, options = {}) {
   // Pull headers out separately so ...rest doesn't overwrite Content-Type
   const { headers: extraHeaders, ...rest } = options;
+  
+  // Attach Supabase JWT
+  let authHeader = {};
+  const { data: { session } } = await window.supabaseClient.auth.getSession();
+  if (session) {
+    authHeader = { 'Authorization': `Bearer ${session.access_token}` };
+  }
+
   try {
     const r = await fetch(path, {
-      headers: { 'Content-Type': 'application/json', ...extraHeaders },
+      headers: { 'Content-Type': 'application/json', ...authHeader, ...extraHeaders },
       ...rest,
     });
     if (!r.ok) {
