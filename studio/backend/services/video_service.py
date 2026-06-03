@@ -232,7 +232,8 @@ def _crop_portrait(src: Path, dst: Path) -> None:
     subprocess.run([
         "ffmpeg", "-y", "-i", str(src),
         "-vf", vf,
-        "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+        "-threads", "1",
+        "-c:v", "libx264", "-crf", "18", "-preset", "superfast",
         "-c:a", "aac", "-b:a", "192k",
         "-movflags", "+faststart",
         str(dst),

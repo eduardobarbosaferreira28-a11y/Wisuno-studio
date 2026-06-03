@@ -197,6 +197,7 @@ def extract_segment(
 
     cmd = [
         "ffmpeg", "-y",
+        "-threads", "1",
         "-ss", f"{seg_start:.3f}",
         "-i", str(source),
         "-t", f"{duration:.3f}",
@@ -554,11 +555,12 @@ def build_final_composite(
 
     cmd = [
         "ffmpeg", "-y",
+        "-threads", "1",
         *inputs,
         "-filter_complex", filter_complex,
         "-map", out_label,
         "-map", "0:a",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-c:v", "libx264", "-preset", "superfast", "-crf", "18",
         "-pix_fmt", "yuv420p",
         "-c:a", "copy",
         "-movflags", "+faststart",
