@@ -10,11 +10,18 @@ WORKDIR /app
 # Install system dependencies
 # ffmpeg is needed for video processing
 # imagemagick is needed for moviepy/hyperframes text/image rendering
+# curl is needed to install Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     imagemagick \
     curl \
+    ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install hyperframes globally
+RUN npm install -g hyperframes
 
 # Fix ImageMagick policy to allow text/rendering if needed (common moviepy issue)
 # (In debian 11+, ImageMagick disables some ghostscript fonts/paths by default. We remove the policy file if it exists)
