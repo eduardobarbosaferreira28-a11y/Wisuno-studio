@@ -149,7 +149,8 @@ async def check_dependencies():
         ("HIGGSFIELD_API_KEY", "Higgsfield (optional)",  "Alternative cover image generation"),
         ("GOOGLE_CSE_API_KEY", "Google Search (optional)", "Slide image sourcing"),
     ]:
-        val = env_vals.get(key, "")
+        # Check os.environ first (for Docker/Render), fallback to .env file
+        val = os.getenv(key, env_vals.get(key, ""))
         is_set = bool(val) and not val.startswith("sk-ant-...") and not val.startswith("your-")
         api_keys[key] = {
             "label": label,
