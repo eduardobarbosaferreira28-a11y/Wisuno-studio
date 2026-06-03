@@ -1,0 +1,444 @@
+{
+  "template_name": "Wisuno Financial Carousel",
+  "format": "Instagram Post",
+  "dimensions": {
+    "width_px": 1080,
+    "height_px": 1350,
+    "aspect_ratio": "4:5",
+    "unit": "px"
+  },
+  "brand": {
+    "primary_color": "#0A0A0A",
+    "accent_color": "#FF6B00",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#CCCCCC",
+    "font_heading": "Urbanist Bold",
+    "font_body": "General Sans",
+    "logo": "Wisuno wordmark, top-left or top-right corner depending on slide type",
+    "disclaimer_text": "This content is educational and informative, not investment advice. Past performance is not an indication of future results. CFDs trading carries risk; please trade responsibly.",
+    "disclaimer_placement": "Bottom of every slide, small font, muted color"
+  },
+  "carousel_structure": {
+    "total_slides": "4 to 8 depending on story complexity",
+    "narrative_arc": "Hook → Context/Data → Market Impact → CTA",
+    "slide_types": [
+      "cover",
+      "data_slide",
+      "analysis_slide",
+      "quote_slide",
+      "chart_slide",
+      "cta_slide"
+    ]
+  },
+  "slides": {
+    "slide_1": {
+      "type": "cover",
+      "role": "Hook — stops the scroll",
+      "layout": {
+        "background": "Full-bleed dark image or solid dark background (near-black #0A0A0A). Background image is always financially thematic: markets chart, oil barrels, federal reserve building, currency bills, stock trading floor. Image is dark-toned or overlaid with dark semi-transparent layer to keep text legible.",
+        "overlay": "Dark gradient overlay, opacity 60–80%, ensuring white text reads cleanly over image",
+        "composition": "Image bleeds edge to edge with text overlaid center or lower-third"
+      },
+      "elements": {
+        "headline": {
+          "content": "Event-driven, punchy title in ALL CAPS or Title Case. Max 6–8 words. Examples: 'THE FED HOLDS RATES', 'DOLLAR DIPS AS IRAN CEASEFIRE TALKS EMERGE', 'IRAN CEASEFIRE SHAKES GLOBAL MARKETS'",
+          "style": "Urbanist Bold or heavy weight sans-serif",
+          "size": "Very large — dominant element on the slide",
+          "color": "#FFFFFF",
+          "position": "Center or lower-center of slide",
+          "text_case": "ALL CAPS or Title Case"
+        },
+        "subheadline": {
+          "content": "One sentence that contextualizes the headline. States what happened and why it matters. Max 12 words.",
+          "style": "General Sans, regular or medium weight",
+          "size": "Medium — clearly subordinate to headline",
+          "color": "#CCCCCC or #FFFFFF at lower opacity",
+          "position": "Directly below headline"
+        },
+        "asset_tag": {
+          "content": "Relevant traded instrument — e.g., 'OIL', 'USD/JPY', 'XAU/USD', 'GBP/USD'. Appears as a small label or pill badge.",
+          "style": "Uppercase, small caps or label style",
+          "color": "#FF6B00 or white on dark badge",
+          "position": "Top-left or top-right corner, or above headline as a category tag"
+        },
+        "logo": {
+          "content": "Wisuno wordmark or 'WisunoFinancial' text",
+          "position": "Top-left or top-right corner",
+          "size": "Small — not competing with headline"
+        },
+        "background_image": {
+          "description": "Financially relevant photography. For oil stories: oil rigs, barrels, refineries, tankers. For Fed/rates stories: Federal Reserve building exterior, Wall Street, trading floors. For forex stories: currency note close-ups, DXY chart screenshots, bank buildings. For geopolitical stories: maps, conflict zones, political figures silhouettes. Always dark-toned or darkened via overlay."
+        },
+        "disclaimer": {
+          "content": "Standard Wisuno disclaimer text",
+          "position": "Bottom of slide",
+          "size": "Very small, 8–10px equivalent",
+          "color": "#888888"
+        }
+      }
+    },
+    "slide_2": {
+      "type": "data_slide",
+      "role": "Deliver the key numbers — the factual anchor of the story",
+      "layout": {
+        "background": "Solid dark background (#0A0A0A or very dark navy). No full-bleed image. Optionally a subtle texture or faint chart graphic in background at very low opacity.",
+        "composition": "Text-heavy. Data presented in structured format: bullet points, numbered list, or stat blocks with labels and values."
+      },
+      "elements": {
+        "slide_label": {
+          "content": "Optional — repeats the asset tag or topic category from cover, e.g., 'OIL', 'INFLATION DATA', 'LABOR MARKET'",
+          "position": "Top-left, small pill or label",
+          "color": "#FF6B00"
+        },
+        "section_headline": {
+          "content": "Short heading framing what the data shows. E.g., 'The math is getting harder', 'What the numbers say', 'February CPI breakdown'",
+          "style": "Urbanist Bold",
+          "size": "Large but smaller than cover headline",
+          "color": "#FFFFFF"
+        },
+        "data_block": {
+          "content": "3–5 data points. Each formatted as: [Label]: [Value] with optional directional context (Revised UP / DOWN, beats / misses expectations). Examples: 'Headline Inflation: Revised UP to 2.7%', 'GDP Growth: 2.4%', 'GBP/USD: Testing $1.34'",
+          "style": "General Sans. Labels in regular weight. Values in bold or accent color.",
+          "layout": "Vertical list with clear visual separation between items. Each stat on its own line.",
+          "color_scheme": "Label: #CCCCCC | Value: #FFFFFF or #FF6B00 for emphasis"
+        },
+        "takeaway_line": {
+          "content": "Single-sentence interpretation of the data block. Starts with 'Takeaway:' as a label prefix, or 'The bottom line:'. Connects numbers to market implications.",
+          "style": "General Sans italic or regular, slightly smaller than data block",
+          "color": "#CCCCCC"
+        },
+        "disclaimer": {
+          "content": "Standard disclaimer",
+          "position": "Bottom",
+          "size": "Very small"
+        }
+      }
+    },
+    "slide_3": {
+      "type": "analysis_slide",
+      "role": "Explain market mechanics — the 'why this matters for traders' layer",
+      "layout": {
+        "background": "Same dark solid background as slide 2. May include a faint background image (relevant chart, map, building) at very low opacity (10–20%) for visual variety.",
+        "composition": "Paragraph-style body copy with a clear topic sentence, 2–3 supporting sentences, and a pointed conclusion."
+      },
+      "elements": {
+        "slide_label": {
+          "content": "Repeats asset/topic tag from cover",
+          "position": "Top-left",
+          "color": "#FF6B00"
+        },
+        "body_text": {
+          "content": "Two to three short paragraphs. Each paragraph is 2–3 sentences max. Explains the mechanism: what the event triggers, how the market is pricing it, what the knock-on effect is. Language is accessible — avoids dense jargon but uses correct market terminology (rate differentials, yield advantage, war premium, safe-haven flows).",
+          "style": "General Sans regular",
+          "size": "Medium body size",
+          "color": "#FFFFFF primary sentences, #CCCCCC supporting text",
+          "line_spacing": "Generous — 1.5x to 1.6x for readability on mobile"
+        },
+        "image_accent": {
+          "description": "Optional: small inset image or icon in upper-right or background. For forex slides: currency pair chart snippet. For rates slides: Fed meeting photo. Never dominates — always subordinate to text."
+        },
+        "disclaimer": {
+          "content": "Standard disclaimer",
+          "position": "Bottom"
+        }
+      }
+    },
+    "slide_4": {
+      "type": "quote_slide",
+      "role": "Add a human voice — sourced quote or editorial commentary that punctuates the story",
+      "layout": {
+        "background": "Dark background. Sometimes a blurred or darkened photo of the quoted person (Fed Chair, market analyst) or a relevant scene.",
+        "composition": "Large quote text centered or left-aligned with attribution below. Minimal other elements."
+      },
+      "elements": {
+        "quote_text": {
+          "content": "Verbatim quote from a key figure (Fed Chair, central bank governor, CEO) OR an editorial 'market voice' styled as a quote. Enclosed in quotation marks. Max 25 words. Example: 'The thing I really want to emphasize is that nobody knows... We just don't know.' — Jerome Powell",
+          "style": "Urbanist Bold or large italic serif-style rendering in sans-serif",
+          "size": "Large — dominant element",
+          "color": "#FFFFFF",
+          "position": "Center of slide, vertically and horizontally"
+        },
+        "attribution": {
+          "content": "Name and title of the speaker, or 'Editorial' if the carousel author's commentary",
+          "style": "General Sans regular, smaller",
+          "color": "#FF6B00 or #CCCCCC",
+          "position": "Below quote, right-aligned or centered"
+        },
+        "rhetorical_caption": {
+          "content": "Sometimes a short rhetorical question or provocative statement overlays the quote as a second layer. Example: 'What is the economic impact of the Middle East conflict?'",
+          "style": "General Sans italic",
+          "color": "#CCCCCC",
+          "position": "Above or below main quote"
+        },
+        "background_image": {
+          "description": "Optional blurred photo of the speaker (Jerome Powell, ECB president, etc.) or a relevant scene (oil tanker, trading floor). Applied with 50–70% dark overlay."
+        },
+        "disclaimer": {
+          "content": "Standard disclaimer",
+          "position": "Bottom"
+        }
+      }
+    },
+    "slide_5": {
+      "type": "chart_slide",
+      "role": "Visualize the data — a chart, graph, or annotated price action snapshot",
+      "layout": {
+        "background": "Dark background. Chart occupies 60–75% of the slide.",
+        "composition": "Chart or graph centered or upper-half. Caption below. Slide label top-left."
+      },
+      "elements": {
+        "chart": {
+          "description": "One of: (1) Line chart showing price action of the relevant asset (oil price, DXY, GBP/USD, S&P 500). (2) Bar chart showing economic data comparison (e.g., jobs added month-over-month). (3) Annotated screenshot from a trading platform. Chart is clean, minimal, dark-themed to match brand. Axis labels in white or light grey. Chart line or bars use accent color (#FF6B00) or white. Key data points annotated with callout labels.",
+          "style": "Minimal. No chart junk. Grid lines very faint. Focus on the trend being discussed.",
+          "color_scheme": "Background: #0A0A0A | Chart line: #FF6B00 or #FFFFFF | Annotation text: #FFFFFF | Axis labels: #888888"
+        },
+        "chart_caption": {
+          "content": "One-sentence description of what the chart shows. E.g., 'The US Labor Market going from +126k jobs in January to -92k jobs in February.'",
+          "style": "General Sans regular, small",
+          "color": "#CCCCCC",
+          "position": "Below chart, centered"
+        },
+        "slide_label": {
+          "content": "Repeats asset/topic tag",
+          "position": "Top-left"
+        },
+        "disclaimer": {
+          "content": "Standard disclaimer",
+          "position": "Bottom"
+        }
+      }
+    },
+    "slide_6_cta": {
+      "type": "cta_slide",
+      "role": "Convert — drives traffic to Wisuno platform",
+      "layout": {
+        "background": "Dark background, sometimes with a subtle upward-trending chart or abstract market graphic at low opacity. Clean and uncluttered.",
+        "composition": "Logo top. Headline center. Body copy below headline. CTA button or link at bottom-center."
+      },
+      "elements": {
+        "platform_label": {
+          "content": "'Trading Platform'",
+          "style": "General Sans, small caps or regular",
+          "color": "#FF6B00",
+          "position": "Above main headline"
+        },
+        "domain": {
+          "content": "'Wisuno.com'",
+          "style": "Urbanist Bold, large",
+          "color": "#FFFFFF",
+          "position": "Center"
+        },
+        "cta_headline": {
+          "content": "'Start trading with Wisuno.'",
+          "style": "Urbanist Bold or General Sans Bold",
+          "color": "#FFFFFF",
+          "position": "Below domain"
+        },
+        "cta_body": {
+          "content": "'Start with a free demo to explore markets risk-free, then upgrade to live trading for full access, advanced tools, and exclusive benefits.'",
+          "style": "General Sans regular",
+          "size": "Small-medium",
+          "color": "#CCCCCC",
+          "position": "Below CTA headline"
+        },
+        "follow_prompt": {
+          "content": "Appears on some slides instead of full CTA: 'FOLLOW FOR MORE' with subtext 'Daily market breakdowns so you never miss a macro move'",
+          "style": "Urbanist Bold for FOLLOW FOR MORE. General Sans for subtext.",
+          "color": "#FFFFFF heading, #CCCCCC subtext"
+        },
+        "disclaimer": {
+          "content": "Standard disclaimer",
+          "position": "Bottom"
+        }
+      }
+    }
+  },
+  "variable_fields": {
+    "description": "Fields that change per carousel topic — everything else is fixed brand template",
+    "fields": [
+      {
+        "field_id": "STORY_TOPIC",
+        "description": "The macro event or market development being covered",
+        "example": "Fed rate decision, oil supply shock, forex CPI reaction, geopolitical ceasefire"
+      },
+      {
+        "field_id": "COVER_HEADLINE",
+        "description": "ALL CAPS or Title Case punchy headline on slide 1",
+        "example": "THE FED HOLDS RATES, DOLLAR DIPS AS IRAN CEASEFIRE TALKS EMERGE"
+      },
+      {
+        "field_id": "COVER_SUBHEADLINE",
+        "description": "One sentence contextualizing the cover headline",
+        "example": "The Federal Reserve kept interest rates unchanged for the second straight meeting this year."
+      },
+      {
+        "field_id": "ASSET_TAG",
+        "description": "Traded instrument or market category label. Used as pill/badge on all slides.",
+        "example": "OIL, USD, GBP/USD, XAU/USD, RATES"
+      },
+      {
+        "field_id": "COVER_BACKGROUND_IMAGE",
+        "description": "Financially thematic dark photograph matching the story. See per-slide image guidance.",
+        "example": "Oil rig at night, Federal Reserve building, currency close-up, trading floor"
+      },
+      {
+        "field_id": "DATA_HEADLINE",
+        "description": "Framing headline for slide 2 data block",
+        "example": "The math is getting harder."
+      },
+      {
+        "field_id": "DATA_POINTS",
+        "description": "Array of 3–5 key stats. Each: { label, value, direction }",
+        "example": [
+          {
+            "label": "Headline Inflation",
+            "value": "2.7%",
+            "direction": "UP"
+          },
+          {
+            "label": "Core Inflation",
+            "value": "2.7%",
+            "direction": "UP"
+          },
+          {
+            "label": "GDP Growth",
+            "value": "2.4%",
+            "direction": "UP"
+          }
+        ]
+      },
+      {
+        "field_id": "TAKEAWAY_LINE",
+        "description": "Single sentence interpreting the data block",
+        "example": "Inflation is stubbornly sitting a full percentage point above the Fed's 2% target, complicating any plans to cut rates soon."
+      },
+      {
+        "field_id": "ANALYSIS_PARAGRAPHS",
+        "description": "Array of 2–3 short paragraphs for slide 3",
+        "example": [
+          "February's CPI landed exactly where expected, but in the forex market, steady inflation means the Bank of England might have to keep rates higher for longer.",
+          "Forex markets reacted immediately. With inflation holding steady, traders are pricing in the reality that the Bank of England won't be rushing to cut interest rates anytime soon."
+        ]
+      },
+      {
+        "field_id": "QUOTE_TEXT",
+        "description": "Verbatim sourced quote, max 25 words",
+        "example": "The thing I really want to emphasize is that nobody knows... We just don't know."
+      },
+      {
+        "field_id": "QUOTE_ATTRIBUTION",
+        "description": "Name and title of the speaker",
+        "example": "Jerome Powell, Fed Chair"
+      },
+      {
+        "field_id": "RHETORICAL_QUESTION",
+        "description": "Optional provocative framing question on quote slide",
+        "example": "What is the economic impact of the Middle East conflict?"
+      },
+      {
+        "field_id": "CHART_TYPE",
+        "description": "Type of chart used on slide 5",
+        "enum": [
+          "line_chart",
+          "bar_chart",
+          "annotated_screenshot"
+        ],
+        "example": "bar_chart"
+      },
+      {
+        "field_id": "CHART_ASSET",
+        "description": "The asset or data series plotted in the chart",
+        "example": "US Non-Farm Payrolls month-over-month, Brent Crude price, GBP/USD 1-week"
+      },
+      {
+        "field_id": "CHART_CAPTION",
+        "description": "One-sentence label below the chart",
+        "example": "The US Labor Market going from +126k jobs in January to -92k jobs in February."
+      }
+    ]
+  },
+  "fixed_elements": {
+    "description": "Elements that do NOT change between carousels — hardcoded in the template",
+    "elements": [
+      "Brand colors: #0A0A0A background, #FF6B00 accent, #FFFFFF primary text",
+      "Font stack: Urbanist Bold (headings), General Sans (body)",
+      "Disclaimer text: identical on every slide",
+      "CTA copy: 'Start trading with Wisuno. Start with a free demo...'",
+      "CTA domain: Wisuno.com",
+      "Platform label: 'Trading Platform'",
+      "Wisuno logo/wordmark placement",
+      "Follow prompt: 'FOLLOW FOR MORE — Daily market breakdowns so you never miss a macro move'",
+      "Dark overlay treatment on all full-bleed background images"
+    ]
+  },
+  "slide_count_variants": {
+    "4_slides": {
+      "use_case": "Simple single-event story. Fewer data points.",
+      "structure": [
+        "cover",
+        "data_or_analysis_slide",
+        "analysis_or_quote_slide",
+        "cta_slide"
+      ]
+    },
+    "5_slides": {
+      "use_case": "Standard story with a clear narrative arc",
+      "structure": [
+        "cover",
+        "data_slide",
+        "analysis_slide",
+        "quote_or_chart_slide",
+        "cta_slide"
+      ]
+    },
+    "6_slides": {
+      "use_case": "Multi-angle story — two distinct market implications to cover",
+      "structure": [
+        "cover",
+        "data_slide",
+        "analysis_slide_1",
+        "analysis_slide_2",
+        "chart_slide",
+        "cta_slide"
+      ]
+    },
+    "8_slides": {
+      "use_case": "Breaking news format with multiple asset classes moving simultaneously",
+      "structure": [
+        "cover",
+        "data_slide",
+        "asset_1_slide",
+        "asset_2_slide",
+        "asset_3_slide",
+        "macro_context_slide",
+        "key_levels_slide",
+        "cta_slide"
+      ]
+    }
+  },
+  "language_variants": {
+    "note": "The same carousel is produced in multiple languages. Structure and layout are identical. Only text fields change.",
+    "variants_observed": [
+      {
+        "code": "EN",
+        "label": "English",
+        "design_suffix": "base"
+      },
+      {
+        "code": "ZH-S",
+        "label": "Simplified Chinese",
+        "design_suffix": "SCN"
+      },
+      {
+        "code": "ZH-T",
+        "label": "Traditional Chinese",
+        "design_suffix": "TCN"
+      },
+      {
+        "code": "TH",
+        "label": "Thai",
+        "design_suffix": "Thai"
+      }
+    ]
+  }
+}

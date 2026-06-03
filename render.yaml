@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: wisuno-studio
+    env: docker
+    region: ohio
+    plan: starter # Starter plan recommended for FFmpeg/video rendering
+    dockerfilePath: ./Dockerfile
+    disk:
+      name: studio-output
+      mountPath: /app/output
+      sizeGB: 10
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHONUTF8
+        value: 1
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

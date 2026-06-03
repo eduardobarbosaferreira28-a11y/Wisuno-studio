@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  wisuno-studio:
+    build: .
+    container_name: wisuno-studio
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount output folder to persist files (carousels, videos) across restarts
+      - ./output:/app/output
+      # Mount env file so you can easily update API keys from the host
+      - ./.env:/app/.env
+    environment:
+      # Python settings
+      - PYTHONUTF8=1
+      # We rely on the .env file being mounted for ANTHROPIC_API_KEY, ELEVENLABS_API_KEY, etc.

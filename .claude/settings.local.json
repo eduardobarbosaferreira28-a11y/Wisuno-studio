@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(.venv/Scripts/python carousel_agent.py \"https://www.tradingview.com/news/DJN_DN20260406000498:0/\")",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python carousel_agent.py \"https://www.tradingview.com/news/DJN_DN20260406000498:0/\")",
+      "Bash(.venv/Scripts/python -c ':*)",
+      "Bash(.venv/Scripts/python carousel_agent.py --text 'The dollar index pared its early gains and fell below 100 on Monday, as traders reacted positively to reports that Iran, the US, and a group of regional mediators are discussing a potential 45-day ceasefire that could pave the way toward ending the war.:*)",
+      "mcp__claude_ai_Canva__request-outline-review",
+      "mcp__claude_ai_Canva__generate-design-structured",
+      "mcp__claude_ai_Canva__generate-design",
+      "mcp__claude_ai_Canva__create-design-from-candidate",
+      "Bash(python -c ':*)"
+    ]
+  }
+}

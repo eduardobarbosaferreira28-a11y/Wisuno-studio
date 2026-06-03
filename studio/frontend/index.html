@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wisuno Studio</title>
+  <meta name="description" content="Wisuno internal content production studio — carousel and video pipeline">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ══ Sidebar ══════════════════════════════════════════ -->
+  <aside id="sidebar">
+    <div class="sidebar-brand">
+      <a class="brand-logo" href="#" onclick="return false;">
+        <div class="brand-icon">W</div>
+        <div>
+          <div class="brand-name">Wisuno</div>
+          <div class="brand-sub">Studio</div>
+        </div>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">System</div>
+
+      <a class="nav-item active" data-page="dashboard" href="#dashboard" id="nav-dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Dashboard
+      </a>
+
+      <a class="nav-item" data-page="setup" href="#setup" id="nav-setup">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Settings
+        <span class="nav-badge" id="nav-setup-badge">…</span>
+      </a>
+
+      <div class="nav-section-label" style="margin-top:12px;">Tools</div>
+
+      <a class="nav-item" data-page="carousel" href="#carousel" id="nav-carousel">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <path d="M8 21h8M12 17v4"/>
+        </svg>
+        Carousel Studio
+      </a>
+
+      <a class="nav-item" data-page="video" href="#video" id="nav-video">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polygon points="23 7 16 12 23 17 23 7"/>
+          <rect x="1" y="5" width="15" height="14" rx="2"/>
+        </svg>
+        Video Studio
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span>Wisuno Studio v1.0</span>
+      <span id="server-status" class="text-muted" style="margin-top:4px;">Connecting…</span>
+    </div>
+  </aside>
+
+  <!-- ══ Main area ════════════════════════════════════════ -->
+  <main id="main">
+
+    <!-- Setup warning banner (shown if deps missing) -->
+    <div id="setup-banner" onclick="app.navigate('setup')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span id="setup-banner-text">Checking system requirements…</span>
+      <span style="margin-left:auto; font-size:11px; opacity:0.7;">View Setup →</span>
+    </div>
+
+    <!-- ── Dashboard page ─────────────────────────────────── -->
+    <div class="page-view active" id="page-dashboard">
+      <!-- Injected by dashboard.js -->
+    </div>
+
+    <!-- ── Setup page ─────────────────────────────────────── -->
+    <div class="page-view" id="page-setup">
+      <div class="page-header">
+        <div class="header-tag">System</div>
+        <h1>Settings</h1>
+        <p>Check that all tools and API keys are configured before using Wisuno Studio.</p>
+      </div>
+
+      <!-- Tools card -->
+      <div class="card">
+        <div class="flex justify-between items-center mb-16">
+          <div class="card-title" style="margin-bottom:0">Required Tools</div>
+          <button class="btn btn-ghost btn-sm" id="btn-recheck" onclick="setupPage.check()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Re-check
+          </button>
+        </div>
+        <div class="dep-list" id="dep-list">
+          <!-- Injected by setup.js -->
+          <div class="dep-item loading">
+            <div class="dep-icon">⏳</div>
+            <div class="dep-info">
+              <div class="dep-name">Checking dependencies…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Keys card -->
+      <div class="card">
+        <div class="card-title">API Keys</div>
+        <p class="text-secondary text-sm mb-16">Keys are saved to the <code style="background:var(--surface-3);padding:2px 6px;border-radius:4px;">.env</code> file in the project root. They never leave your machine.</p>
+        <div class="key-grid" id="key-grid">
+          <!-- Injected by setup.js -->
+        </div>
+      </div>
+
+      <!-- System info card -->
+      <div class="card" style="opacity:0.7;">
+        <div class="card-title">How to use Wisuno Studio</div>
+        <div class="flex-col gap-8" style="display:flex;flex-direction:column;gap:8px;">
+          <div class="flex gap-12 items-center" style="display:flex;gap:12px;align-items:flex-start;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">1</div>
+            <div><strong>Fix any red items above</strong> — every team member runs their own copy of this app.</div>
+          </div>
+          <div class="flex gap-12 items-center" style="display:flex;gap:12px;align-items:flex-start;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">2</div>
+            <div><strong>Carousel Studio</strong> — paste a news URL or article text to generate a branded Instagram carousel in up to 5 languages.</div>
+          </div>
+          <div class="flex gap-12 items-center" style="display:flex;gap:12px;align-items:flex-start;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">3</div>
+            <div><strong>Video Studio</strong> — upload a raw talking-head MP4. Review the proposed cuts, approve them, and receive a broadcast-ready final_music.mp4 in ~10 minutes.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Carousel page (populated by carousel.js) ──────── -->
+    <div class="page-view" id="page-carousel">
+      <!-- carouselPage.init() injects the full UI here -->
+    </div>
+
+    <!-- ── Video page (populated by video.js) ───────────── -->
+    <div class="page-view" id="page-video">
+      <!-- videoPage.init() injects the full UI here -->
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Preview modal (shared by carousel preview) -->
+<div id="preview-modal">
+  <div class="modal-backdrop" onclick="previewModal.close()"></div>
+  <div class="modal-container">
+    <div class="modal-header">
+      <div class="modal-header-title" id="preview-modal-title">Preview</div>
+      <div class="modal-header-actions">
+        <button class="btn btn-ghost btn-sm" id="preview-btn-download" onclick="previewModal.download()">⬇ Download</button>
+        <button class="btn btn-ghost btn-sm" id="preview-btn-copy" onclick="previewModal.copyCaption()">📋 Copy Caption</button>
+        <button class="modal-close" onclick="previewModal.close()">✕</button>
+      </div>
+    </div>
+    <div class="modal-lang-tabs" id="preview-lang-tabs">
+      <!-- Injected by carousel.js -->
+    </div>
+    <div class="modal-iframe-wrap">
+      <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+    <div class="modal-caption-panel">
+      <div class="modal-caption-header">
+        <span class="modal-caption-label">Instagram Caption</span>
+        <button class="btn btn-ghost btn-sm" onclick="previewModal.copyCaption()" style="padding:3px 10px;font-size:11px;">📋 Copy</button>
+      </div>
+      <div class="modal-caption-text" id="preview-caption-text">Loading caption...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="/js/app.js?v=2"></script>
+<script src="/js/dashboard.js?v=2"></script>
+<script src="/js/setup.js?v=2"></script>
+<script src="/js/carousel.js?v=2"></script>
+<script src="/js/video.js?v=2"></script>
+
+</body>
+</html>
