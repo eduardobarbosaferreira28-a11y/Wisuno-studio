@@ -80,6 +80,33 @@
       box-shadow: 0 0 0 2px rgba(255, 103, 0, 0.2);
     }
     
+    .password-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    
+    .password-container input {
+      padding-right: 40px;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .password-toggle:hover {
+      color: var(--white);
+    }
+    
     .login-btn {
       width: 100%;
       padding: 14px;
@@ -121,14 +148,43 @@
       </div>
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" required placeholder="••••••••">
+        <div class="password-container">
+          <input type="password" id="password" required placeholder="••••••••">
+          <button type="button" class="password-toggle" id="togglePassword" title="Toggle password visibility">
+            <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="login-btn">Log In</button>
-      <div class="error-msg" id="errorMsg">Invalid credentials.</div>
+      <div class="error-msg" id="errorMsg" style="background: rgba(255,68,68,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,68,68,0.3);">Invalid credentials.</div>
     </form>
   </div>
 
   <script>
+    // Password toggle
+    const togglePassword = document.getElementById('togglePassword');
+    const password = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
+    
+    togglePassword.addEventListener('click', function () {
+      const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+      password.setAttribute('type', type);
+      
+      if (type === 'text') {
+        eyeIcon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+        `;
+      } else {
+        eyeIcon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        `;
+      }
+    });
     // These keys are public and safe to expose to the frontend.
     // They are injected dynamically by the backend, or you can hardcode them here 
     // since they are safe. For now we will fetch them from the setup endpoint,
@@ -157,7 +213,11 @@
       });
       
       if (error) {
-        errorMsg.textContent = error.message;
+        if (error.message.toLowerCase().includes("email not confirmed")) {
+          errorMsg.innerHTML = "<strong>Email not confirmed!</strong><br>Please check your inbox and click the confirmation link sent by Supabase. Alternatively, you can disable 'Confirm email' in Supabase Auth settings.";
+        } else {
+          errorMsg.textContent = error.message;
+        }
         errorMsg.style.display = 'block';
         btn.textContent = "Log In";
         btn.disabled = false;
