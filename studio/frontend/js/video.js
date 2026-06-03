@@ -323,7 +323,17 @@ const videoPage = {
     formData.append('file', file);
 
     try {
-      const resp = await fetch('/api/video/upload', { method: 'POST', body: formData });
+      let authHeader = {};
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session) {
+        authHeader = { 'Authorization': `Bearer ${session.access_token}` };
+      }
+
+      const resp = await fetch('/api/video/upload', { 
+        method: 'POST', 
+        headers: authHeader,
+        body: formData 
+      });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.detail || `Upload failed (${resp.status})`);
