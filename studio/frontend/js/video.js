@@ -354,7 +354,7 @@ const videoPage = {
   async _poll() {
     if (!vState.jobId) return;
     try {
-      const data = await fetch(`/api/video/status/${vState.jobId}`).then(r => r.json());
+      const data = await apiFetch(`/api/video/status/${vState.jobId}`);
 
       this._updateSteps(data.steps || []);
 
@@ -505,9 +505,8 @@ const videoPage = {
     const music    = document.getElementById('v-music')?.checked    ?? true;
 
     try {
-      const resp = await fetch(`/api/video/approve/${vState.jobId}`, {
+      const result = await apiFetch(`/api/video/approve/${vState.jobId}`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           cuts:             vState.editedCuts,
           grade,
@@ -515,12 +514,6 @@ const videoPage = {
           include_music:    music,
         }),
       });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.detail || 'Approval failed');
-      }
-      const result = await resp.json();
       toast.success(`Rendering ${result.cuts} cuts (${result.total_s}s) with ${grade} grade…`);
       this._showCard('rendering');
       this._startPolling();

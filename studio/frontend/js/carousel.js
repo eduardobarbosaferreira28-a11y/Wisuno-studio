@@ -317,7 +317,7 @@ const carouselPage = {
   async _poll() {
     if (!state.jobId) return;
     try {
-      const data = await fetch(`/api/carousel/status/${state.jobId}`).then(r => r.json());
+      const data = await apiFetch(`/api/carousel/status/${state.jobId}`);
       this._updateSteps(data.steps);
 
       if (data.status === 'done') {
