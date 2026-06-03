@@ -76,7 +76,7 @@ const app = {
   async _checkAuth() {
     const { data: { session } } = await window.supabaseClient.auth.getSession();
     if (!session) {
-      window.location.href = "login.html";
+      window.location.href = "login.html?v=3";
     }
     
     // Wire logout button
@@ -84,7 +84,7 @@ const app = {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
         await window.supabaseClient.auth.signOut();
-        window.location.href = "login.html";
+        window.location.href = "login.html?v=3";
       });
     }
   },
