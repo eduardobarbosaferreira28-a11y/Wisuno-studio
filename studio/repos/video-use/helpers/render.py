@@ -191,9 +191,9 @@ def extract_segment(
     if draft:
         preset, crf = "ultrafast", "28"
     elif preview:
-        preset, crf = "medium", "22"
+        preset, crf = "ultrafast", "26"
     else:
-        preset, crf = "fast", "20"
+        preset, crf = "ultrafast", "22"
 
     cmd = [
         "ffmpeg", "-y",
