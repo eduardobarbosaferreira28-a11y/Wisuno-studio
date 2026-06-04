@@ -67,22 +67,23 @@ const dashboardPage = {
         
         for (const entry of entries) {
             const time = new Date(entry.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-            const topic = entry.details.topic || (entry.job_type === 'carousel' ? 'Carousel Generation' : 'Video Generation');
+            const details = entry.details || {};
+            const topic = details.topic || (entry.job_type === 'carousel' ? 'Carousel Generation' : 'Video Generation');
             const typeIcon = entry.job_type === 'carousel' ? '🗂️' : '🎬';
             const badgeClass = entry.status === 'done' ? 'badge-green' : 'badge-red';
             const badgeText = entry.status === 'done' ? 'Done' : 'Failed';
             
             let linksHtml = '';
             if (entry.status === 'done') {
-                if (entry.job_type === 'carousel' && entry.details.files) {
-                    entry.details.files.forEach(f => {
+                if (entry.job_type === 'carousel' && details.files) {
+                    details.files.forEach(f => {
                         linksHtml += `<a href="${f.url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);">⬇ ${f.lang}</a>`;
                     });
-                } else if (entry.job_type === 'video' && entry.details.file) {
-                    linksHtml += `<a href="${entry.details.file}" download class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
+                } else if (entry.job_type === 'video' && details.file) {
+                    linksHtml += `<a href="${details.file}" download class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
                 }
             } else {
-                const errStr = entry.details.error || 'Unknown error';
+                const errStr = details.error || 'Unknown error';
                 linksHtml = `<span style="font-size:11px;color:var(--text-danger);background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:4px;">${errStr.substring(0,50)}${errStr.length>50?'...':''}</span>`;
             }
 
