@@ -277,7 +277,6 @@ def _run_render(
             extract_all_segments,
             concat_segments,
             apply_loudnorm_two_pass,
-            build_final_composite,
         )
         from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
 
@@ -407,21 +406,57 @@ def _run_render(
         edl["overlays"] = overlays
         edl_path.write_text(json.dumps(edl, indent=2))
 
-        # ── F: Render composite + 2-pass loudnorm ─────────────────────────────
-        gc.collect()  # Free all HyperFrames/Chromium memory before heavy composite
-        job["steps"][5]["note"] = "[6/8] Compositing overlays + loudnorm (render.py)…"
+        # ── F: Render composite — apply overlays ONE AT A TIME ─────────────────
+        # Critical: applying all overlays in one FFmpeg call loads 6+ video
+        # streams simultaneously (~2GB+). Instead we chain: base → +ov1 → +ov2…
+        # so only 2 streams are ever in memory at once (~400MB).
+        gc.collect()
+        job["steps"][5]["note"] = "[6/8] Compositing overlays (sequential)…"
+
+        current_base = base_path
+        for ov_idx, ov in enumerate(overlays):
+            ov_file = (edit_dir / ov["file"]).resolve()
+            t_start = float(ov["start_in_output"])
+            t_dur   = float(ov["duration"])
+            t_end   = t_start + t_dur
+            out_tmp = edit_dir / f"_composite_step_{ov_idx}.mp4"
+
+            job["steps"][5]["note"] = f"[6/8] Compositing overlay {ov_idx+1}/{len(overlays)}…"
+
+            # Single overlay composite: base + one overlay
+            fc = (
+                f"[1:v]setpts=PTS-STARTPTS+{t_start}/TB[a1];"
+                f"[0:v][a1]overlay=enable='between(t,{t_start:.3f},{t_end:.3f})'[outv]"
+            )
+            cmd = [
+                "ffmpeg", "-y", "-threads", "1",
+                "-i", str(current_base),
+                "-i", str(ov_file),
+                "-filter_complex", fc,
+                "-map", "[outv]", "-map", "0:a",
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "22",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                "-max_muxing_queue_size", "512",
+                "-movflags", "+faststart",
+                str(out_tmp),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+
+            # Delete previous intermediate to free disk space
+            if current_base != base_path:
+                current_base.unlink(missing_ok=True)
+            current_base = out_tmp
+            gc.collect()
+
+        # Rename final composite step to final.mp4
         final_path = edit_dir / "final.mp4"
-        build_final_composite(
-            base_path,
-            [{"file": str((edit_dir / o["file"]).resolve()),
-              "start_in_output": o["start_in_output"],
-              "duration": o["duration"]}
-             for o in overlays],
-            None,
-            final_path,
-            edit_dir,
-        )
-        gc.collect()  # Free composite memory before loudnorm
+        if current_base != final_path:
+            import shutil as _shutil
+            _shutil.move(str(current_base), str(final_path))
+
+        gc.collect()
+        job["steps"][5]["note"] = "[6/8] Loudness normalization…"
         normalised = edit_dir / "normalised.mp4"
         apply_loudnorm_two_pass(final_path, normalised, preview=False)
         final_path.unlink(missing_ok=True)
