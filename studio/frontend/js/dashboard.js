@@ -42,7 +42,8 @@ const dashboardPage = {
     if (!list) return;
 
     try {
-      const data = await apiFetch('/api/history');
+      const ts = new Date().getTime();
+      const data = await apiFetch(`/api/history?t=${ts}`);
       const history = data.history || [];
       
       if (history.length === 0) {
