@@ -56,6 +56,7 @@ def get_history(limit: int = 100) -> list[dict]:
     if supabase:
         try:
             res = supabase.table("jobs").select("*").order("created_at", desc=True).limit(limit).execute()
+            print(f"DEBUG: Supabase returned {len(res.data)} rows")
             entries = []
             for row in res.data:
                 entries.append({
@@ -68,6 +69,8 @@ def get_history(limit: int = 100) -> list[dict]:
             return entries
         except Exception as e:
             print(f"Error reading from Supabase: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback to local file
             pass
 

@@ -92,8 +92,8 @@ GEMINI_API_KEY     = os.getenv("GEMINI_API_KEY", "")
 GOOGLE_CSE_API_KEY = os.getenv("GOOGLE_CSE_API_KEY", "")
 GOOGLE_CSE_ID      = os.getenv("GOOGLE_CSE_ID", "")
 HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")
-SUPABASE_URL       = os.getenv("SUPABASE_URL", "")
-SUPABASE_ANON_KEY  = os.getenv("SUPABASE_ANON_KEY", "")
+SUPABASE_URL       = os.getenv("SUPABASE_URL", "https://wkfwjdwjpavgzugwcgte.supabase.co")
+SUPABASE_ANON_KEY  = os.getenv("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
 ANTHROPIC_MODEL    = "claude-sonnet-4-6"
 GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
 
