@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import re
 import os
+import concurrent.futures
 from pathlib import Path
 
 
@@ -220,9 +221,9 @@ For Variant B use:
                     slides_data = json.loads(raw[m.start():i+1])
                     break
 
-    overlays = []
-    for idx, sd in enumerate(slides_data[:3]):
-        # Find output timestamp for this slide's trigger phrase
+    overlays = [None] * len(slides_data[:3])
+
+    def _process_slide(idx, sd):
         trigger = (sd.get("trigger_phrase") or sd.get("topic_keyword", "")).lower()
         start_in_output = _find_trigger_time(trigger, word_output_times)
 
@@ -234,15 +235,21 @@ For Variant B use:
         html = _build_slide_html(sd, slot_name)
         (slot_dir / "index.html").write_text(html, encoding="utf-8")
 
-        # Render sequentially (HyperFrames requirement)
+        # Render concurrently!
         render_hyperframes(slot_dir, out_path, fmt="mp4")
 
-        overlays.append({
+        return {
             "file":            str(out_path.relative_to(edit_dir)),
             "start_in_output": round(start_in_output, 3),
             "duration":        4.0,
             "abs_path":        str(out_path),
-        })
+        }
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(_process_slide, idx, sd): idx for idx, sd in enumerate(slides_data[:3])}
+        for future in concurrent.futures.as_completed(futures):
+            idx = futures[future]
+            overlays[idx] = future.result()
 
     return overlays
 

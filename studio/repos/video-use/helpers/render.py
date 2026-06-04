@@ -21,10 +21,13 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
-import json
+import os
 import re
+import json
 import subprocess
+import shutil
+import concurrent.futures
+import argparse
 import sys
 from pathlib import Path
 
@@ -197,7 +200,6 @@ def extract_segment(
 
     cmd = [
         "ffmpeg", "-y",
-        "-threads", "1",
         "-analyzeduration", "5000000", "-probesize", "5000000",
         "-ss", f"{seg_start:.3f}",
         "-i", str(source),
@@ -237,11 +239,12 @@ def extract_all_segments(
     ranges = edl["ranges"]
     sources = edl["sources"]
 
-    seg_paths: list[Path] = []
-    print(f"extracting {len(ranges)} segment(s) → {clips_dir.name}/")
+    seg_paths: list[Path] = [None] * len(ranges)
+    print(f"extracting {len(ranges)} segment(s) → {clips_dir.name}/ (max 4 concurrent)")
     if is_auto:
         print("  (auto-grade per segment: analyzing each range)")
-    for i, r in enumerate(ranges):
+        
+    def _process_segment(i, r):
         src_name = r["source"]
         src_path = resolve_path(sources[src_name], edit_dir)
         start = float(r["start"])
@@ -259,7 +262,17 @@ def extract_all_segments(
         if is_auto:
             print(f"        grade: {seg_filter or '(none)'}")
         extract_segment(src_path, start, duration, seg_filter, out_path, preview=preview, draft=draft)
-        seg_paths.append(out_path)
+        return out_path
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(_process_segment, i, r): i for i, r in enumerate(ranges)}
+        for future in concurrent.futures.as_completed(futures):
+            idx = futures[future]
+            try:
+                seg_paths[idx] = future.result()
+            except Exception as e:
+                print(f"Extraction failed for segment {idx}: {e}")
+                raise
 
     return seg_paths
 

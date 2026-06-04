@@ -239,7 +239,6 @@ def _crop_portrait(src: Path, dst: Path) -> None:
         "-analyzeduration", "5000000", "-probesize", "5000000",
         "-i", str(src),
         "-vf", vf,
-        "-threads", "1",
         "-c:v", "libx264", "-crf", "22", "-preset", "ultrafast",
         "-c:a", "aac", "-b:a", "128k",
         "-max_muxing_queue_size", "512",
@@ -375,93 +374,103 @@ def _run_render(
                 print(f"[video_service] Graphic slides failed: {gfx_err}")
                 raise  # hard fail per spec
 
-        # D1.5 — Render Caption overlay using precise output timeline
-        if transcript_json.exists():
-            job["steps"][5]["note"] = "[4/8] Rendering karaoke captions (HyperFrames)…"
-            slide_windows = [
-                (so["start_in_output"], so["start_in_output"] + 4.0)
-                for so in slide_overlays
-            ] if slide_overlays else []
-            cap_overlay = build_caption_overlay(transcript_json, cuts, slide_windows, edit_dir, edit_duration)
+        job["steps"][5]["note"] = "[4/8] Rendering UI overlays (HyperFrames)…"
+        slide_windows = [
+            (so["start_in_output"], so["start_in_output"] + 4.0)
+            for so in slide_overlays
+        ] if slide_overlays else []
+
+        def _do_captions():
+            if transcript_json.exists():
+                return build_caption_overlay(transcript_json, cuts, slide_windows, edit_dir, edit_duration)
+            return None
+
+        def _do_disclaimer():
+            return build_disclaimer_overlay(edit_dir, edit_duration)
+
+        def _do_outro():
+            return build_outro(edit_dir)
+
+        # Run UI renders concurrently!
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            fut_cap  = executor.submit(_do_captions)
+            fut_disc = executor.submit(_do_disclaimer)
+            fut_out  = executor.submit(_do_outro)
+            
+            cap_overlay_path = fut_cap.result()
+            disc_overlay_path = fut_disc.result()
+            outro_path = fut_out.result()
+
+        if cap_overlay_path:
             overlays.insert(0, {
-                "file":            str(cap_overlay.relative_to(edit_dir)),
+                "file":            str(cap_overlay_path.relative_to(edit_dir)),
                 "start_in_output": 0.0,
                 "duration":        edit_duration,
             })
-            gc.collect()
 
-        # D3 — Disclaimer overlay (transparent MOV)
-        job["steps"][5]["note"] = "[5/8] Rendering disclaimer overlay (HyperFrames)…"
-        disc_overlay = build_disclaimer_overlay(edit_dir, edit_duration)
         overlays.append({
-            "file":            str(disc_overlay.relative_to(edit_dir)),
+            "file":            str(disc_overlay_path.relative_to(edit_dir)),
             "start_in_output": 0.0,
             "duration":        edit_duration,
         })
 
-        # D4 — Branded outro (5s opaque MP4)
-        job["steps"][5]["note"] = "[5/8] Rendering branded outro (HyperFrames)…"
-        outro_path = build_outro(edit_dir)
         overlays.append({
             "file":            str(outro_path.relative_to(edit_dir)),
             "start_in_output": edit_duration,
             "duration":        5.0,
         })
+        gc.collect()
 
         # ── E: Update EDL with all overlays ────────────────────────────────────
         job["steps"][5]["note"] = "[6/8] Writing final EDL with overlays…"
         edl["overlays"] = overlays
         edl_path.write_text(json.dumps(edl, indent=2))
 
-        # ── F: Render composite — batch overlays in groups of 3 ─────────────────
-        # All-at-once (6 streams) = OOM. One-at-a-time (6 re-encodes) = too slow.
-        # Batching 3 at a time = 2 passes, max 4 streams (~1.2GB), fits in 2GB.
+        # ── F: Render composite (Single Pass) ─────────────────────────────────
+        # Since we are on Railway Hobby with 8GB RAM, we can run all overlays
+        # in a single FFmpeg pass, halving the compositing time.
         gc.collect()
-        job["steps"][5]["note"] = "[6/8] Compositing overlays…"
+        job["steps"][5]["note"] = "[6/8] Compositing all overlays in a single pass…"
 
-        BATCH_SIZE = 3
-        current_base = base_path
+        final_composite_path = edit_dir / "final.mp4"
+        out_tmp = edit_dir / "_composite.mp4"
+        inputs = ["-i", str(base_path)]
+        filter_parts = []
+        current_label = "[0:v]"
 
-        for batch_start in range(0, len(overlays), BATCH_SIZE):
-            batch = overlays[batch_start : batch_start + BATCH_SIZE]
-            batch_num = batch_start // BATCH_SIZE + 1
-            total_batches = (len(overlays) + BATCH_SIZE - 1) // BATCH_SIZE
-            job["steps"][5]["note"] = f"[6/8] Compositing pass {batch_num}/{total_batches}…"
+        for idx, ov in enumerate(overlays):
+            ov_file = (edit_dir / ov["file"]).resolve()
+            inputs += ["-i", str(ov_file)]
+            stream_idx = idx + 1
+            t_start = float(ov["start_in_output"])
+            t_end   = t_start + float(ov["duration"])
+            
+            # For overlay inputs that have no explicit duration, we just enable='gte(...)'
+            # But we must offset their PTS so they actually start at t_start
+            filter_parts.append(
+                f"[{stream_idx}:v]setpts=PTS-STARTPTS+{t_start}/TB[a{stream_idx}]"
+            )
+            next_label = f"[v{stream_idx}]"
+            filter_parts.append(
+                f"{current_label}[a{stream_idx}]overlay="
+                f"enable='between(t,{t_start:.3f},{t_end:.3f})'{next_label}"
+            )
+            current_label = next_label
 
-            out_tmp = edit_dir / f"_composite_batch_{batch_num}.mp4"
-
-            # Build multi-overlay filter graph for this batch
-            inputs = ["-i", str(current_base)]
-            filter_parts = []
-            current_label = "[0:v]"
-
-            for idx, ov in enumerate(batch):
-                ov_file = (edit_dir / ov["file"]).resolve()
-                inputs += ["-i", str(ov_file)]
-                stream_idx = idx + 1
-                t_start = float(ov["start_in_output"])
-                t_end   = t_start + float(ov["duration"])
-
-                filter_parts.append(
-                    f"[{stream_idx}:v]setpts=PTS-STARTPTS+{t_start}/TB[a{stream_idx}]"
-                )
-                next_label = f"[v{stream_idx}]"
-                filter_parts.append(
-                    f"{current_label}[a{stream_idx}]overlay="
-                    f"enable='between(t,{t_start:.3f},{t_end:.3f})'{next_label}"
-                )
-                current_label = next_label
-
-            # Rename last label to [outv]
+        if not filter_parts:
+            # If no overlays at all, just copy
+            import shutil
+            shutil.copy2(base_path, final_composite_path)
+        else:
             filter_parts.append(f"{current_label}null[outv]")
             filter_complex = ";".join(filter_parts)
 
             cmd = [
-                "ffmpeg", "-y", "-threads", "1",
+                "ffmpeg", "-y",
                 *inputs,
                 "-filter_complex", filter_complex,
                 "-map", "[outv]", "-map", "0:a",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "22",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "22",
                 "-pix_fmt", "yuv420p",
                 "-c:a", "copy",
                 "-max_muxing_queue_size", "512",
