@@ -478,25 +478,14 @@ def _run_render(
                 str(out_tmp),
             ]
             subprocess.run(cmd, check=True, capture_output=True)
-
-            # Delete previous intermediate to free disk space
-            if current_base != base_path:
-                current_base.unlink(missing_ok=True)
-            current_base = out_tmp
-            gc.collect()
-
-        # Rename final composite to final.mp4
-        final_path = edit_dir / "final.mp4"
-        if current_base != final_path:
-            import shutil as _shutil
-            _shutil.move(str(current_base), str(final_path))
+            out_tmp.rename(final_composite_path)
 
         gc.collect()
         job["steps"][5]["note"] = "[6/8] Loudness normalization…"
         normalised = edit_dir / "normalised.mp4"
-        apply_loudnorm_two_pass(final_path, normalised, preview=False)
-        final_path.unlink(missing_ok=True)
-        normalised.rename(final_path)
+        apply_loudnorm_two_pass(final_composite_path, normalised, preview=False)
+        final_composite_path.unlink(missing_ok=True)
+        normalised.rename(final_composite_path)
 
         # ── G: Generate background music ───────────────────────────────────────
         music_final_path = None
