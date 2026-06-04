@@ -376,7 +376,7 @@ def _run_render(
                 raise  # hard fail per spec
 
         # D1.5 — Render Caption overlay using precise output timeline
-        if include_captions and transcript_json.exists():
+        if transcript_json.exists():
             job["steps"][5]["note"] = "[4/8] Rendering karaoke captions (HyperFrames)…"
             slide_windows = [
                 (so["start_in_output"], so["start_in_output"] + 4.0)
