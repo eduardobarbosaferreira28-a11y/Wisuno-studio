@@ -6,9 +6,14 @@ Finds npx.cmd via shutil.which and calls it directly as a subprocess list —
 no shell=True, no quoting issues, works on Python 3.14+ Windows.
 """
 from __future__ import annotations
+import gc
+import os
 import subprocess
 import shutil
 from pathlib import Path
+
+# Limit Chromium memory usage in headless mode
+os.environ.setdefault("PLAYWRIGHT_CHROMIUM_SANDBOX", "0")
 
 
 def _npx() -> str:
@@ -61,6 +66,10 @@ def render_hyperframes(
         capture_output=True, text=True,
         cwd=str(slot_dir.resolve()),
     )
+
+    # Force garbage collection to release Chromium/Node memory immediately
+    gc.collect()
+
     if result.returncode != 0:
         raise RuntimeError(
             f"HyperFrames render failed (exit {result.returncode}):\n"

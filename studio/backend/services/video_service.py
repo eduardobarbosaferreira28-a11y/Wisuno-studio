@@ -22,7 +22,9 @@ All output goes to:  wisuno-carousel/output/video/<slug>/edit/
 """
 from __future__ import annotations
 
+import gc
 import json
+import os
 import re
 import subprocess
 import sys
@@ -30,6 +32,9 @@ import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+# Limit glibc memory arenas to reduce RSS bloat from multi-threaded allocators
+os.environ.setdefault("MALLOC_ARENA_MAX", "2")
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 BACKEND_DIR   = Path(__file__).parent.parent
@@ -230,11 +235,14 @@ def _crop_portrait(src: Path, dst: Path) -> None:
         f"scale={PORTRAIT_OUT_W}:{PORTRAIT_OUT_H},setsar=1:1"
     )
     subprocess.run([
-        "ffmpeg", "-y", "-i", str(src),
+        "ffmpeg", "-y",
+        "-analyzeduration", "5000000", "-probesize", "5000000",
+        "-i", str(src),
         "-vf", vf,
         "-threads", "1",
-        "-c:v", "libx264", "-crf", "18", "-preset", "superfast",
-        "-c:a", "aac", "-b:a", "192k",
+        "-c:v", "libx264", "-crf", "22", "-preset", "ultrafast",
+        "-c:a", "aac", "-b:a", "128k",
+        "-max_muxing_queue_size", "512",
         "-movflags", "+faststart",
         str(dst),
     ], check=True, capture_output=True)
@@ -313,6 +321,7 @@ def _run_render(
         segment_paths = extract_all_segments(edl, edit_dir, preview=False)
         base_path = edit_dir / "base.mp4"
         concat_segments(segment_paths, base_path, edit_dir)
+        gc.collect()  # Free memory before HyperFrames renders
 
         # ── D: Render HyperFrames overlays (sequentially) ─────────────────────
         from helpers.build_overlays import (
@@ -332,6 +341,7 @@ def _run_render(
             "start_in_output": 0.0,
             "duration":        edit_duration,
         })
+        gc.collect()  # Free Chromium memory after HyperFrames render
 
         # D2 — Graphic slides (3 × 4s opaque MP4)
         slide_overlays = []
@@ -369,6 +379,7 @@ def _run_render(
                 )
                 # Re-render captions with updated windows
                 build_caption_overlay(ass_path, edit_dir, edit_duration)
+                gc.collect()  # Free Chromium memory after each slide render
             except Exception as gfx_err:
                 print(f"[video_service] Graphic slides failed: {gfx_err}")
                 raise  # hard fail per spec
@@ -397,6 +408,7 @@ def _run_render(
         edl_path.write_text(json.dumps(edl, indent=2))
 
         # ── F: Render composite + 2-pass loudnorm ─────────────────────────────
+        gc.collect()  # Free all HyperFrames/Chromium memory before heavy composite
         job["steps"][5]["note"] = "[6/8] Compositing overlays + loudnorm (render.py)…"
         final_path = edit_dir / "final.mp4"
         build_final_composite(
@@ -409,6 +421,7 @@ def _run_render(
             final_path,
             edit_dir,
         )
+        gc.collect()  # Free composite memory before loudnorm
         normalised = edit_dir / "normalised.mp4"
         apply_loudnorm_two_pass(final_path, normalised, preview=False)
         final_path.unlink(missing_ok=True)

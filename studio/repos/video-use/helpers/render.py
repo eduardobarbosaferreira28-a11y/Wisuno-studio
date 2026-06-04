@@ -198,6 +198,7 @@ def extract_segment(
     cmd = [
         "ffmpeg", "-y",
         "-threads", "1",
+        "-analyzeduration", "5000000", "-probesize", "5000000",
         "-ss", f"{seg_start:.3f}",
         "-i", str(source),
         "-t", f"{duration:.3f}",
@@ -205,7 +206,8 @@ def extract_segment(
         "-af", af,
         "-c:v", "libx264", "-preset", preset, "-crf", crf,
         "-pix_fmt", "yuv420p", "-r", "24",
-        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+        "-max_muxing_queue_size", "512",
         "-movflags", "+faststart",
         str(out_path),
     ]
@@ -406,6 +408,7 @@ def measure_loudness(video_path: Path) -> dict[str, str] | None:
     )
     cmd = [
         "ffmpeg", "-y", "-hide_banner", "-nostats",
+        "-threads", "1",
         "-i", str(video_path),
         "-af", filter_str,
         "-vn", "-f", "null", "-",
@@ -447,10 +450,11 @@ def apply_loudnorm_two_pass(
         filter_str = f"loudnorm=I={LOUDNORM_I}:TP={LOUDNORM_TP}:LRA={LOUDNORM_LRA}"
         cmd = [
             "ffmpeg", "-y", "-hide_banner", "-nostats",
+            "-threads", "1",
             "-i", str(input_path),
             "-c:v", "copy",
             "-af", filter_str,
-            "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
             "-movflags", "+faststart",
             str(output_path),
         ]
@@ -479,10 +483,11 @@ def apply_loudnorm_two_pass(
     )
     cmd = [
         "ffmpeg", "-y", "-hide_banner", "-nostats",
+        "-threads", "1",
         "-i", str(input_path),
         "-c:v", "copy",
         "-af", filter_str,
-        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
         "-movflags", "+faststart",
         str(output_path),
     ]
@@ -560,9 +565,10 @@ def build_final_composite(
         "-filter_complex", filter_complex,
         "-map", out_label,
         "-map", "0:a",
-        "-c:v", "libx264", "-preset", "superfast", "-crf", "18",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
         "-pix_fmt", "yuv420p",
         "-c:a", "copy",
+        "-max_muxing_queue_size", "512",
         "-movflags", "+faststart",
         str(out_path),
     ]

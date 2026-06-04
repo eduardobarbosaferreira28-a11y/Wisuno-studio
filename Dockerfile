@@ -5,6 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONUTF8=1
 
+# Memory optimization for 2GB Render Standard plan
+ENV MALLOC_ARENA_MAX=2
+ENV PLAYWRIGHT_CHROMIUM_DISABLE_GPU=1
+ENV NODE_OPTIONS="--max-old-space-size=256"
+
 WORKDIR /app
 
 # Install system dependencies
