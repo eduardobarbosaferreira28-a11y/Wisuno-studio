@@ -406,33 +406,53 @@ def _run_render(
         edl["overlays"] = overlays
         edl_path.write_text(json.dumps(edl, indent=2))
 
-        # ── F: Render composite — apply overlays ONE AT A TIME ─────────────────
-        # Critical: applying all overlays in one FFmpeg call loads 6+ video
-        # streams simultaneously (~2GB+). Instead we chain: base → +ov1 → +ov2…
-        # so only 2 streams are ever in memory at once (~400MB).
+        # ── F: Render composite — batch overlays in groups of 3 ─────────────────
+        # All-at-once (6 streams) = OOM. One-at-a-time (6 re-encodes) = too slow.
+        # Batching 3 at a time = 2 passes, max 4 streams (~1.2GB), fits in 2GB.
         gc.collect()
-        job["steps"][5]["note"] = "[6/8] Compositing overlays (sequential)…"
+        job["steps"][5]["note"] = "[6/8] Compositing overlays…"
 
+        BATCH_SIZE = 3
         current_base = base_path
-        for ov_idx, ov in enumerate(overlays):
-            ov_file = (edit_dir / ov["file"]).resolve()
-            t_start = float(ov["start_in_output"])
-            t_dur   = float(ov["duration"])
-            t_end   = t_start + t_dur
-            out_tmp = edit_dir / f"_composite_step_{ov_idx}.mp4"
 
-            job["steps"][5]["note"] = f"[6/8] Compositing overlay {ov_idx+1}/{len(overlays)}…"
+        for batch_start in range(0, len(overlays), BATCH_SIZE):
+            batch = overlays[batch_start : batch_start + BATCH_SIZE]
+            batch_num = batch_start // BATCH_SIZE + 1
+            total_batches = (len(overlays) + BATCH_SIZE - 1) // BATCH_SIZE
+            job["steps"][5]["note"] = f"[6/8] Compositing pass {batch_num}/{total_batches}…"
 
-            # Single overlay composite: base + one overlay
-            fc = (
-                f"[1:v]setpts=PTS-STARTPTS+{t_start}/TB[a1];"
-                f"[0:v][a1]overlay=enable='between(t,{t_start:.3f},{t_end:.3f})'[outv]"
-            )
+            out_tmp = edit_dir / f"_composite_batch_{batch_num}.mp4"
+
+            # Build multi-overlay filter graph for this batch
+            inputs = ["-i", str(current_base)]
+            filter_parts = []
+            current_label = "[0:v]"
+
+            for idx, ov in enumerate(batch):
+                ov_file = (edit_dir / ov["file"]).resolve()
+                inputs += ["-i", str(ov_file)]
+                stream_idx = idx + 1
+                t_start = float(ov["start_in_output"])
+                t_end   = t_start + float(ov["duration"])
+
+                filter_parts.append(
+                    f"[{stream_idx}:v]setpts=PTS-STARTPTS+{t_start}/TB[a{stream_idx}]"
+                )
+                next_label = f"[v{stream_idx}]"
+                filter_parts.append(
+                    f"{current_label}[a{stream_idx}]overlay="
+                    f"enable='between(t,{t_start:.3f},{t_end:.3f})'{next_label}"
+                )
+                current_label = next_label
+
+            # Rename last label to [outv]
+            filter_parts.append(f"{current_label}null[outv]")
+            filter_complex = ";".join(filter_parts)
+
             cmd = [
                 "ffmpeg", "-y", "-threads", "1",
-                "-i", str(current_base),
-                "-i", str(ov_file),
-                "-filter_complex", fc,
+                *inputs,
+                "-filter_complex", filter_complex,
                 "-map", "[outv]", "-map", "0:a",
                 "-c:v", "libx264", "-preset", "ultrafast", "-crf", "22",
                 "-pix_fmt", "yuv420p",
@@ -449,7 +469,7 @@ def _run_render(
             current_base = out_tmp
             gc.collect()
 
-        # Rename final composite step to final.mp4
+        # Rename final composite to final.mp4
         final_path = edit_dir / "final.mp4"
         if current_base != final_path:
             import shutil as _shutil
