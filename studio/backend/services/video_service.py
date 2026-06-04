@@ -391,8 +391,8 @@ def _run_render(
         def _do_outro():
             return build_outro(edit_dir)
 
-        # Run UI renders concurrently!
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        # Run UI renders sequentially to conserve memory (Chromium is heavy)
+        with ThreadPoolExecutor(max_workers=1) as executor:
             fut_cap  = executor.submit(_do_captions)
             fut_disc = executor.submit(_do_disclaimer)
             fut_out  = executor.submit(_do_outro)

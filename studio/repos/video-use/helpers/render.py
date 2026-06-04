@@ -264,7 +264,7 @@ def extract_all_segments(
         extract_segment(src_path, start, duration, seg_filter, out_path, preview=preview, draft=draft)
         return out_path
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         futures = {executor.submit(_process_segment, i, r): i for i, r in enumerate(ranges)}
         for future in concurrent.futures.as_completed(futures):
             idx = futures[future]

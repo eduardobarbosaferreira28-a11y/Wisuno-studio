@@ -245,7 +245,7 @@ For Variant B use:
             "abs_path":        str(out_path),
         }
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         futures = {executor.submit(_process_slide, idx, sd): idx for idx, sd in enumerate(slides_data[:3])}
         for future in concurrent.futures.as_completed(futures):
             idx = futures[future]
