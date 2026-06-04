@@ -50,43 +50,63 @@ const dashboardPage = {
         return;
       }
 
-      let html = `<div style="display:flex;flex-direction:column;gap:8px;">`;
+      let groups = {};
       for (const entry of history) {
-        const time = new Date(entry.timestamp).toLocaleString();
-        const typeIcon = entry.job_type === 'carousel' ? '🗂️' : '🎬';
-        const typeName = entry.job_type === 'carousel' ? 'Carousel' : 'Video';
-        const badgeClass = entry.status === 'done' ? 'badge-green' : 'badge-red';
-        const badgeText = entry.status === 'done' ? 'Done' : 'Failed';
-        
-        let linksHtml = '';
-        if (entry.status === 'done') {
-            if (entry.job_type === 'carousel' && entry.details.files) {
-                entry.details.files.forEach(f => {
-                    linksHtml += `<a href="${f.url}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 6px;">⬇ ${f.lang}</a>`;
-                });
-            } else if (entry.job_type === 'video' && entry.details.file) {
-                linksHtml += `<a href="${entry.details.file}" target="_blank" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 6px;">⬇ Download</a>`;
-            }
-        } else {
-            const errStr = entry.details.error || 'Unknown error';
-            linksHtml = `<span style="font-size:11px;color:var(--text-danger);">${errStr.substring(0,50)}${errStr.length>50?'...':''}</span>`;
-        }
+        const dateObj = new Date(entry.timestamp);
+        // e.g. "June 4, 2026"
+        const dateStr = dateObj.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+        if (!groups[dateStr]) groups[dateStr] = [];
+        groups[dateStr].push(entry);
+      }
 
-        html += `
-          <div style="background:var(--surface-2);border-radius:6px;padding:12px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);">
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="font-size:20px;opacity:0.8">${typeIcon}</div>
-              <div>
-                <div style="font-weight:600;font-size:14px;color:var(--text-primary);">${typeName} Run <span style="opacity:0.5;font-weight:normal;font-size:12px;font-family:monospace;margin-left:4px;">${entry.job_id}</span></div>
-                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${time}</div>
+      let html = `<div style="display:flex;flex-direction:column;gap:24px;">`;
+      for (const [dateStr, entries] of Object.entries(groups)) {
+        html += `<div>`;
+        html += `<div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;padding-left:4px;">${dateStr}</div>`;
+        html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
+        
+        for (const entry of entries) {
+            const time = new Date(entry.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            const topic = entry.details.topic || (entry.job_type === 'carousel' ? 'Carousel Generation' : 'Video Generation');
+            const typeIcon = entry.job_type === 'carousel' ? '🗂️' : '🎬';
+            const badgeClass = entry.status === 'done' ? 'badge-green' : 'badge-red';
+            const badgeText = entry.status === 'done' ? 'Done' : 'Failed';
+            
+            let linksHtml = '';
+            if (entry.status === 'done') {
+                if (entry.job_type === 'carousel' && entry.details.files) {
+                    entry.details.files.forEach(f => {
+                        linksHtml += `<a href="${f.url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);">⬇ ${f.lang}</a>`;
+                    });
+                } else if (entry.job_type === 'video' && entry.details.file) {
+                    linksHtml += `<a href="${entry.details.file}" download class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
+                }
+            } else {
+                const errStr = entry.details.error || 'Unknown error';
+                linksHtml = `<span style="font-size:11px;color:var(--text-danger);background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:4px;">${errStr.substring(0,50)}${errStr.length>50?'...':''}</span>`;
+            }
+
+            html += `
+              <div style="background:var(--surface-2);border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);transition:border-color 0.2s;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                  <div style="font-size:20px;background:var(--surface-3);border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);">${typeIcon}</div>
+                  <div>
+                    <div style="font-weight:600;font-size:15px;color:var(--text-primary);margin-bottom:4px;">${topic}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
+                      <span>${time}</span>
+                      <span style="opacity:0.3;">•</span>
+                      <span style="font-family:monospace;opacity:0.6;">ID: ${entry.job_id}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:16px;">
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:280px;justify-content:flex-end;">${linksHtml}</div>
+                  <span class="badge ${badgeClass}" style="min-width:60px;text-align:center;">${badgeText}</span>
+                </div>
               </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:200px;justify-content:flex-end;">${linksHtml}</div>
-              <span class="badge ${badgeClass}" style="min-width:50px;text-align:center;">${badgeText}</span>
-            </div>
-          </div>
-        `;
+            `;
+        }
+        html += `</div></div>`;
       }
       html += `</div>`;
       list.innerHTML = html;

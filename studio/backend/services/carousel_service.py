@@ -136,6 +136,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         # ── STEP 2 — Generate English script ──────────────────────────────────
         _step_start(job, 1)
         en_script = _hc.generate_script(article_text, num_slides, content_type=content_type)
+        job["topic"] = en_script.get("title", "Carousel")
         _step_done(job, 1)
 
         # Set up output directory
@@ -212,7 +213,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
             file_links = []
             for lc, f in files.items():
                 file_links.append({"lang": lc, "url": f"/api/carousel/download/{job_id}/{lc}/carousel"})
-            log_job(job_id, "carousel", "done", {"files": file_links})
+            log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links})
         except Exception as e:
             print(f"[carousel_service] History log failed: {e}")
 
@@ -229,6 +230,6 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         # Log to history
         try:
             from services.history_service import log_job
-            log_job(job_id, "carousel", "error", {"error": str(exc)})
+            log_job(job_id, "carousel", "error", {"topic": job.get("topic", "Carousel"), "error": str(exc)})
         except Exception:
             pass

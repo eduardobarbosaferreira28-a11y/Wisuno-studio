@@ -80,6 +80,7 @@ def _make_job(video_path: str) -> dict:
         "steps":         [{"label": lbl, "status": "pending"} for lbl in STEP_LABELS],
         "current_step":  -1,
         "video_path":    video_path,
+        "topic":         Path(video_path).stem,
         "portrait_path": None,   # path after portrait crop
         "edit_dir":      None,
         "probe":         None,
@@ -223,7 +224,7 @@ def _run_analysis(job_id: str, video_path: str):
         print(f"[video_service] Analysis {job_id} failed:\n{tb}")
         
         try:
-            log_job(job_id, "video", "error", {"error": str(exc), "step": "analysis"})
+            log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc), "step": "analysis"})
         except Exception:
             pass
 
@@ -520,7 +521,7 @@ def _run_render(
         try:
             log_job(
                 job_id, "video", "done",
-                {"file": f"/api/video/download/{job_id}", "size_mb": size_mb}
+                {"topic": job.get("topic", "Video"), "file": f"/api/video/download/{job_id}", "size_mb": size_mb}
             )
         except Exception as e:
             print(f"[video_service] History log failed: {e}")
@@ -534,7 +535,7 @@ def _run_render(
         
         # Log error history
         try:
-            log_job(job_id, "video", "error", {"error": str(exc)})
+            log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc)})
         except Exception:
             pass
 
