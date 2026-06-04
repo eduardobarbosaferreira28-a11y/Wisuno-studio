@@ -392,7 +392,7 @@ def _run_render(
             return build_outro(edit_dir)
 
         # Run UI renders concurrently!
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             fut_cap  = executor.submit(_do_captions)
             fut_disc = executor.submit(_do_disclaimer)
             fut_out  = executor.submit(_do_outro)
