@@ -319,9 +319,6 @@ const videoPage = {
     this._showCard('progress');
     this._resetSteps();
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
       let authHeader = {};
       const { data: { session } } = await window.supabaseClient.auth.getSession();
@@ -329,19 +326,59 @@ const videoPage = {
         authHeader = { 'Authorization': `Bearer ${session.access_token}` };
       }
 
-      const resp = await fetch('/api/video/upload', { 
-        method: 'POST', 
-        headers: authHeader,
-        body: formData 
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.detail || `Upload failed (${resp.status})`);
+      // 1. Chunked Upload setup (20MB chunks)
+      const chunkSize = 20 * 1024 * 1024;
+      const totalChunks = Math.ceil(file.size / chunkSize);
+      const uploadId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+
+      // 2. Upload each chunk sequentially
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        const formData = new FormData();
+        formData.append('upload_id', uploadId);
+        formData.append('chunk_index', i);
+        formData.append('file', chunk, file.name);
+
+        btn.textContent = `Uploading… ${Math.round(((i) / totalChunks) * 100)}%`;
+
+        const resp = await fetch('/api/video/upload_chunk', {
+          method: 'POST',
+          headers: authHeader,
+          body: formData
+        });
+
+        if (!resp.ok) {
+          throw new Error(`Upload failed at chunk ${i + 1}/${totalChunks}`);
+        }
       }
-      const result = await resp.json();
+
+      btn.textContent = 'Processing…';
+
+      // 3. Finalize upload
+      const completeData = new FormData();
+      completeData.append('upload_id', uploadId);
+      completeData.append('filename', file.name);
+      completeData.append('total_chunks', totalChunks);
+
+      const completeResp = await fetch('/api/video/upload_complete', {
+        method: 'POST',
+        headers: authHeader,
+        body: completeData
+      });
+
+      if (!completeResp.ok) {
+        const err = await completeResp.json().catch(() => ({}));
+        throw new Error(err.detail || 'Upload completion failed');
+      }
+
+      const result = await completeResp.json();
       vState.jobId = result.job_id;
-      toast.info(`Uploaded ${file.name} · Analysis started (${result.job_id})`);
+      toast.info(`Uploaded ${file.name} · Analysis started`);
       this._startPolling();
+
     } catch (err) {
       toast.error(err.message || 'Upload failed');
       this._showCard('upload');

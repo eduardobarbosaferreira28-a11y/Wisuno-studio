@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import shutil
 import uuid
+import glob
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -40,12 +41,11 @@ ALLOWED_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv"}
 
 @router.post("/upload")
 async def upload_video(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
-    """Upload an MP4 and start the analysis pipeline. Returns job_id."""
+    """Upload an MP4 and start the analysis pipeline. Returns job_id. (Legacy single-file)"""
     suffix = Path(file.filename or "video.mp4").suffix.lower()
     if suffix not in ALLOWED_EXTS:
         raise HTTPException(400, f"Unsupported format '{suffix}'. Use: {', '.join(ALLOWED_EXTS)}")
 
-    # Save to upload dir with a unique name to avoid collisions
     safe_name  = f"{Path(file.filename or 'video').stem}_{uuid.uuid4().hex[:6]}{suffix}"
     dest_path  = UPLOAD_DIR / safe_name
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -59,6 +59,70 @@ async def upload_video(file: UploadFile = File(...), user: dict = Depends(get_cu
     return {
         "job_id":    job_id,
         "filename":  file.filename,
+        "size_mb":   round(size_mb, 1),
+        "message":   "Analysis started — poll /api/video/status/{job_id}",
+    }
+
+
+# ── Chunked Uploads ───────────────────────────────────────────────────────────
+
+@router.post("/upload_chunk")
+async def upload_chunk(
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user)
+):
+    """Receive a single file chunk and append it to a temporary chunk file."""
+    chunk_dir = UPLOAD_DIR / f"_chunks_{upload_id}"
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    
+    chunk_path = chunk_dir / f"{chunk_index:04d}.part"
+    with chunk_path.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+        
+    return {"status": "ok", "chunk_index": chunk_index}
+
+
+@router.post("/upload_complete")
+async def upload_complete(
+    upload_id: str = Form(...),
+    filename: str = Form(...),
+    total_chunks: int = Form(...),
+    user: dict = Depends(get_current_user)
+):
+    """Stitch all chunks together, verify count, and start analysis."""
+    chunk_dir = UPLOAD_DIR / f"_chunks_{upload_id}"
+    if not chunk_dir.exists():
+        raise HTTPException(404, "Upload session not found")
+        
+    # Verify we have all chunks
+    parts = sorted(glob.glob(str(chunk_dir / "*.part")))
+    if len(parts) != total_chunks:
+        raise HTTPException(400, f"Missing chunks: expected {total_chunks}, got {len(parts)}")
+        
+    suffix = Path(filename or "video.mp4").suffix.lower()
+    if suffix not in ALLOWED_EXTS:
+        raise HTTPException(400, f"Unsupported format '{suffix}'. Use: {', '.join(ALLOWED_EXTS)}")
+        
+    safe_name  = f"{Path(filename or 'video').stem}_{uuid.uuid4().hex[:6]}{suffix}"
+    dest_path  = UPLOAD_DIR / safe_name
+    
+    # Stitch chunks
+    with dest_path.open("wb") as dest_file:
+        for part_path in parts:
+            with open(part_path, "rb") as part_file:
+                shutil.copyfileobj(part_file, dest_file)
+                
+    # Cleanup chunks
+    shutil.rmtree(chunk_dir, ignore_errors=True)
+    
+    size_mb = dest_path.stat().st_size / (1024 * 1024)
+    job_id  = start_analysis(str(dest_path))
+
+    return {
+        "job_id":    job_id,
+        "filename":  filename,
         "size_mb":   round(size_mb, 1),
         "message":   "Analysis started — poll /api/video/status/{job_id}",
     }
