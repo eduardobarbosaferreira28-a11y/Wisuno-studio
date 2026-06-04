@@ -332,15 +332,10 @@ def _run_render(
 
         overlays = []  # list of overlay dicts for final EDL
 
-        # D1 — Caption overlay (karaoke captions, transparent MOV)
-        job["steps"][5]["note"] = "[4/8] Rendering karaoke captions (HyperFrames)…"
-        cap_overlay = build_caption_overlay(ass_path, edit_dir, edit_duration)
-        overlays.append({
-            "file":            str(cap_overlay.relative_to(edit_dir)),
-            "start_in_output": 0.0,
-            "duration":        edit_duration,
-        })
-        gc.collect()  # Free Chromium memory after HyperFrames render
+        # D1 — Caption overlay
+        job["steps"][5]["note"] = "[4/8] Building ASS subtitles (no video render)…"
+        # We use master.ass directly in FFmpeg, skipping Chromium rendering!
+        gc.collect()
 
         # D2 — Graphic slides (3 × 4s opaque MP4)
         slide_overlays = []
@@ -376,21 +371,16 @@ def _run_render(
                     output_path=ass_path,
                     edit_duration_s=edit_duration,
                 )
-                # Re-render captions with updated windows
-                build_caption_overlay(ass_path, edit_dir, edit_duration)
+                # Note: We skip building caption_overlay video here since we burn ASS directly
                 gc.collect()  # Free Chromium memory after each slide render
             except Exception as gfx_err:
                 print(f"[video_service] Graphic slides failed: {gfx_err}")
                 raise  # hard fail per spec
 
-        # D3 — Disclaimer overlay (transparent MOV)
-        job["steps"][5]["note"] = "[5/8] Rendering disclaimer overlay (HyperFrames)…"
-        disc_overlay = build_disclaimer_overlay(edit_dir, edit_duration)
-        overlays.append({
-            "file":            str(disc_overlay.relative_to(edit_dir)),
-            "start_in_output": 0.0,
-            "duration":        edit_duration,
-        })
+        # D3 — Disclaimer overlay
+        job["steps"][5]["note"] = "[5/8] Building disclaimer ASS…"
+        disc_ass_path = edit_dir / "disclaimer.ass"
+        _build_disclaimer_ass(disc_ass_path, edit_duration)
 
         # D4 — Branded outro (5s opaque MP4)
         job["steps"][5]["note"] = "[5/8] Rendering branded outro (HyperFrames)…"
@@ -447,6 +437,19 @@ def _run_render(
 
             # Rename last label to [outv]
             filter_parts.append(f"{current_label}null[outv]")
+            
+            # If this is the LAST batch, append the ASS subtitle burns!
+            if batch_num == total_batches:
+                # Escape paths for FFmpeg filter: replace \ with /, and : with \:
+                # e.g. C:\path\master.ass -> C\:/path/master.ass
+                cap_ass  = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+                disc_ass = str(disc_ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+                # Pop the null[outv] and replace with subtitle filters
+                filter_parts.pop()
+                filter_parts.append(
+                    f"{current_label}subtitles='{disc_ass}',subtitles='{cap_ass}'[outv]"
+                )
+            
             filter_complex = ";".join(filter_parts)
 
             cmd = [
@@ -534,7 +537,38 @@ def _run_render(
             pass
 
 
-# ── Music helpers ─────────────────────────────────────────────────────────────
+# ── Music/Subtitle helpers ───────────────────────────────────────────────────
+
+def _build_disclaimer_ass(out_path: Path, dur: float) -> None:
+    """Generate ASS file for the rotating 3-sentence disclaimer."""
+    each = dur / 3.0
+    fade_ms = 300
+    
+    def ts(secs: float) -> str:
+        cs = int(round(secs * 100))
+        h  = cs // 360000;   cs %= 360000
+        m  = cs // 6000;     cs %= 6000
+        s  = cs // 100;      cs %= 100
+        return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+    lines = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        "PlayResX: 1080",
+        "PlayResY: 1920",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        "Style: Disc,Inter,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,3,4,0,8,60,60,260,1",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        f"Dialogue: 0,{ts(0)},{ts(each)},Disc,,0,0,0,,{{\\fad({fade_ms},{fade_ms})}}CFD trading carries a high level of risk and may not be suitable for all investors.",
+        f"Dialogue: 0,{ts(each)},{ts(each*2)},Disc,,0,0,0,,{{\\fad({fade_ms},{fade_ms})}}This content is for educational purposes only and does not constitute financial or investment advice.",
+        f"Dialogue: 0,{ts(each*2)},{ts(dur)},Disc,,0,0,0,,{{\\fad({fade_ms},{fade_ms})}}Regulated by CMA, CySEC, FSA & FSC. Trade responsibly.",
+    ]
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+
 
 def _generate_music(edit_duration: float, out_path: Path) -> None:
     """Call ElevenLabs /v1/music with exact duration."""
