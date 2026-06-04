@@ -522,14 +522,12 @@ const previewModal = {
   },
 
   download() {
-    const lang = this._activeLang;
-    if (!lang || !this._files[lang]) return;
-    const a = document.createElement('a');
-    a.href = this._files[lang].carousel_url;
-    a.download = '';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const iframe = document.getElementById('preview-iframe');
+    if (iframe && iframe.contentWindow && typeof iframe.contentWindow.downloadAllSlides === 'function') {
+      iframe.contentWindow.downloadAllSlides();
+    } else {
+      toast.error('Preview not fully loaded yet. Please wait a moment.');
+    }
   },
 
   close() {
