@@ -95,7 +95,7 @@ const dashboardPage = {
                     <div style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
                       <span>${time}</span>
                       <span style="opacity:0.3;">•</span>
-                      <span style="font-family:monospace;opacity:0.6;">ID: ${entry.job_id}</span>
+                      <span style="font-family:monospace;opacity:0.6;">ID: ${entry.job_id.substring(0, 8)}</span>
                     </div>
                   </div>
                 </div>

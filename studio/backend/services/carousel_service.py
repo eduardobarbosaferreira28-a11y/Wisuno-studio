@@ -92,7 +92,7 @@ def start_job(
     skip_images: bool,
     languages: list[str],
 ) -> str:
-    job_id = str(uuid.uuid4())[:10]
+    job_id = str(uuid.uuid4())
     job = _make_job(languages)
     _jobs[job_id] = job
     _executor.submit(_run, job_id, url, text, num_slides, content_type, skip_images, languages)

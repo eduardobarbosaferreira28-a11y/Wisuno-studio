@@ -113,7 +113,7 @@ def _step_error(job: dict, idx: int, msg: str):
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 def start_analysis(video_path: str) -> str:
-    job_id = str(uuid.uuid4())[:10]
+    job_id = str(uuid.uuid4())
     job = _make_job(video_path)
     _jobs[job_id] = job
     _executor.submit(_run_analysis, job_id, video_path)
