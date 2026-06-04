@@ -505,11 +505,11 @@ def _run_render(
         output_path = edit_dir / "final_music.mp4"
         if music_final_path and music_final_path.exists():
             job["steps"][5]["note"] = "[8/8] Mixing audio…"
-            _mix_audio(final_path, music_final_path, output_path)
+            _mix_audio(final_composite_path, music_final_path, output_path)
         else:
             # No music — just copy final.mp4 as the deliverable
             import shutil
-            shutil.copy2(str(final_path), str(output_path))
+            shutil.copy2(str(final_composite_path), str(output_path))
 
         job["render_path"] = str(output_path)
         size_mb = output_path.stat().st_size / (1024 * 1024)
