@@ -60,8 +60,8 @@ def build_karaoke_ass(
     slide_windows: list[tuple[float, float]],
     output_path: Path,
     edit_duration_s: float,
-) -> None:
-    """Generate master.ass from Scribe transcript + EDL ranges."""
+) -> list[list[dict]]:
+    """Generate master.ass from Scribe transcript + EDL ranges, and return structured lines."""
     # Load word-level transcript
     data  = json.loads(transcript_json.read_text(encoding="utf-8"))
     words = [w for w in data.get("words", []) if w.get("type") == "word"]
@@ -177,7 +177,5 @@ def build_karaoke_ass(
             f"Dialogue: 0,{_ts(line_start)},{_ts(line_end)},Default,,0,0,0,,{text}"
         )
 
-    output_path.write_text(
-        _ASS_HEADER + "\n".join(events) + "\n",
-        encoding="utf-8",
-    )
+    output_path.write_text(_ASS_HEADER + "\n" + "\n".join(events), encoding="utf-8")
+    return lines

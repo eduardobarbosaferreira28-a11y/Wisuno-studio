@@ -39,88 +39,65 @@ def _logo_dataurl() -> str:
 # ── CAPTION OVERLAY (transparent MOV) ─────────────────────────────────────────
 
 def build_caption_overlay(
-    master_ass: Path,
+    transcript_json: Path,
+    ranges: list[dict],
+    slide_windows: list[tuple[float, float]],
     edit_dir: Path,
     edit_duration_s: float,
 ) -> Path:
     """
-    Parse master.ass → build HyperFrames HTML caption overlay → render overlay.mov
+    Build HyperFrames HTML caption overlay with exact sync -> render overlay.mov
     Returns path to the rendered overlay.mov
     """
     from helpers.hf_render import render_hyperframes
+    from helpers.build_karaoke_ass import build_karaoke_ass
 
     slot_dir = edit_dir / "overlays" / "captions"
     slot_dir.mkdir(parents=True, exist_ok=True)
     out_path = slot_dir / "overlay.mov"
 
-    # Parse ASS Dialogue lines
-    captions = _parse_ass_captions(master_ass)
+    # We need to compute lines using the exact timing logic from karaoke
+    ass_path = edit_dir / "master.ass"
+    lines = build_karaoke_ass(transcript_json, ranges, slide_windows, ass_path, edit_duration_s)
 
-    # Generate the HTML
-    html = _build_caption_html(captions, edit_duration_s)
+    # Generate the HTML using the exact word timestamps
+    html = _build_caption_html(lines, edit_duration_s)
     (slot_dir / "index.html").write_text(html, encoding="utf-8")
 
     render_hyperframes(slot_dir, out_path, fmt="mov")
     return out_path
 
 
-def _parse_ass_captions(ass_path: Path) -> list[dict]:
-    """Parse ASS Dialogue lines → list of {start, end, words:[{text,dur_cs}]}"""
-    captions = []
-    for line in ass_path.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("Dialogue:"):
-            continue
-        # Dialogue: 0,H:MM:SS.cc,H:MM:SS.cc,Default,,0,0,0,,{text}
-        parts = line.split(",", 9)
-        if len(parts) < 10:
-            continue
-        start = _parse_ts(parts[1])
-        end   = _parse_ts(parts[2])
-        raw   = parts[9]
-
-        # Extract {\\kN} / {\\kfN}word tokens
-        tokens = re.findall(r"\{\\k[f]?(\d+)\}([^{]*)", raw)
-        words = [{"text": t.strip(), "dur_cs": int(d)} for d, t in tokens if t.strip()]
-        if words:
-            captions.append({"start": start, "end": end, "words": words})
-    return captions
-
-
-def _parse_ts(ts: str) -> float:
-    """H:MM:SS.cc → seconds"""
-    ts = ts.strip()
-    h, m, rest = ts.split(":")
-    s, cs = rest.split(".")
-    return int(h)*3600 + int(m)*60 + int(s) + int(cs)/100
-
-
-def _build_caption_html(captions: list[dict], duration: float) -> str:
+def _build_caption_html(lines: list[list[dict]], duration: float) -> str:
     # Build div elements
     cap_divs = []
-    for i, cap in enumerate(captions):
+    for i, line in enumerate(lines):
         word_spans = "".join(
             f'<span class="w" id="c{i}w{j}">{w["text"]}</span>'
-            for j, w in enumerate(cap["words"])
+            for j, w in enumerate(line)
         )
         cap_divs.append(
             f'<div class="cap" id="cap{i}"><div class="cap-box">{word_spans}</div></div>'
         )
 
-    # Build GSAP timeline JS
+    # Build GSAP timeline JS with exact sync
     tl_lines = []
-    for i, cap in enumerate(captions):
-        t0 = cap["start"]
-        t1 = cap["end"]
+    for i, line in enumerate(lines):
+        if not line:
+            continue
+        t0 = line[0]["start"]
+        t1 = line[-1]["end"] + 0.15  # tail padding
+        
+        # Turn the line container on and off
         tl_lines.append(f'  tl.set("#cap{i}", {{opacity:1}}, {t0:.3f});')
-        # Word highlights
-        cursor = t0
-        for j, w in enumerate(cap["words"]):
-            word_t = cursor
-            tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{ORANGE}"}}, {word_t:.3f});')
-            if j > 0:
-                tl_lines.append(f'  tl.set("#c{i}w{j-1}", {{color:"{TEXT}"}}, {word_t:.3f});')
-            cursor += w["dur_cs"] / 100
         tl_lines.append(f'  tl.set("#cap{i}", {{opacity:0}}, {t1:.3f});')
+        
+        # Word highlights exactly synced to start and end times
+        for j, w in enumerate(line):
+            start = w["start"]
+            end   = w["end"]
+            tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{ORANGE}"}}, {start:.3f});')
+            tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{TEXT}"}}, {end:.3f});')
 
     caps_html = "\n".join(cap_divs)
     tl_js = "\n".join(tl_lines)
