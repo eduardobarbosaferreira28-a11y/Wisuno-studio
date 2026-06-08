@@ -200,7 +200,7 @@ TRANSLATION RULES:
     chart_type, chart_asset, data_points[].value
 - Keep financial abbreviations in English: CPI, Fed, GDP, USD, EUR, CFD, YoY, etc.
 - Maintain professional financial journalism tone
-- Return ONLY valid JSON with the exact same structure — no markdown, no explanation
+- EXTREMELY IMPORTANT: Return ONLY valid JSON with the exact same structure. No markdown, no conversational text. You MUST properly escape any double quotes inside your translated text strings as \\".
 
 SCRIPT:
 {script_json}"""
@@ -210,24 +210,42 @@ def translate_script(script: dict, lang_code: str, retries: int = 2) -> dict:
     lang_name = LANGUAGES[lang_code]
     print(f"\n     Translating to {lang_name}...")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
     prompt = _TRANSLATE_PROMPT.format(
         lang_name=lang_name,
         script_json=json.dumps(script, ensure_ascii=False, indent=2),
     )
 
+    messages = [{"role": "user", "content": prompt}]
     last_exc: Exception | None = None
+
     for attempt in range(retries + 1):
         if attempt > 0:
             print(f"        Retry {attempt}/{retries} (invalid JSON from Claude)...")
             time.sleep(2)
+            messages.append({
+                "role": "user", 
+                "content": f"The JSON you returned was invalid. Error: {last_exc}\nPlease fix the syntax errors (such as unescaped double quotes inside strings or trailing commas) and return ONLY the raw corrected JSON."
+            })
+            
         message = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
         )
         raw = message.content[0].text.strip()
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
+        messages.append({"role": "assistant", "content": raw})
+        
+        # Robustly extract JSON block if wrapped in markdown
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+        if match:
+            raw = match.group(1).strip()
+        else:
+            # Fallback: find first { and last }
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                raw = raw[start:end+1]
 
         try:
             return json.loads(raw)
