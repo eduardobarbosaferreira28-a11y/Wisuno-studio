@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '@/lib/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Download, Play, Images, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,21 +36,23 @@ export const DashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">Home</div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Recent carousel and video production runs.</p>
+      <div className="mb-8">
+        <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[1px] text-[#FF6B00] mb-2">
+          <div className="w-5 h-[2px] bg-[#FF6B00] rounded-full" /> Home
+        </div>
+        <h1 className="font-brand font-black text-[28px] tracking-[-0.5px]">Dashboard</h1>
+        <p className="text-sm text-[#AAAAAA] mt-1.5">Recent carousel and video production runs.</p>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
-          <CardTitle className="text-lg font-medium">Job History</CardTitle>
+      <div className="wisuno-card">
+        <div className="flex flex-row items-center justify-between pb-4 border-b border-border">
+          <div className="wisuno-card-title !mb-0">Job History</div>
           <Button variant="ghost" size="sm" onClick={fetchHistory} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-        </CardHeader>
-        <CardContent className="pt-6">
+        </div>
+        <div className="pt-6">
           {loading && history.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">Loading history...</div>
           ) : history.length === 0 ? (
@@ -70,8 +71,8 @@ export const DashboardPage = () => {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
