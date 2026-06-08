@@ -10,7 +10,7 @@ const dashboardPage = {
 
   render() {
     const page = document.getElementById('page-dashboard');
-    if (!page.innerHTML.trim()) {
+    if (!page.querySelector('.page-header')) {
       page.innerHTML = `
         <div class="page-header">
           <div class="header-tag">Home</div>
