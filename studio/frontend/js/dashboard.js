@@ -43,8 +43,11 @@ const dashboardPage = {
 
     try {
       const ts = new Date().getTime();
+      console.log(`[Dashboard] Fetching /api/history?t=${ts}...`);
       const data = await apiFetch(`/api/history?t=${ts}`);
+      console.log(`[Dashboard] Raw data received:`, data);
       const history = data.history || [];
+      console.log(`[Dashboard] Parsed history array (${history.length} items):`, history);
       
       if (history.length === 0) {
         list.innerHTML = `<div class="text-muted" style="padding:20px;text-align:center;">No recent runs found.</div>`;
