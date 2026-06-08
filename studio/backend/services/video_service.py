@@ -517,11 +517,17 @@ def _run_render(
         _step_done(job, 5, f"final_music.mp4 · {size_mb:.1f} MB · 1080×1920 portrait")
         job["status"] = "done"
 
-        # Log history
+        # Upload to Storage and Log history
         try:
+            from services.history_service import log_job
+            from services.supabase_client import upload_to_storage
+            
+            public_url = upload_to_storage("wisuno-assets", f"videos/{job_id}/final_music.mp4", str(output_path), "video/mp4")
+            url_to_use = public_url if public_url else f"/api/video/download/{job_id}"
+            
             log_job(
                 job_id, "video", "done",
-                {"topic": job.get("topic", "Video"), "file": f"/api/video/download/{job_id}", "size_mb": size_mb}
+                {"topic": job.get("topic", "Video"), "file": url_to_use, "size_mb": size_mb}
             )
         except Exception as e:
             print(f"[video_service] History log failed: {e}")

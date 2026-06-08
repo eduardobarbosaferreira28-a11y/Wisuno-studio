@@ -206,13 +206,16 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         job["files"]      = files
         job["status"]     = "done"
         
-        # Log to history
+        # Log to history and Upload to Storage
         try:
             from services.history_service import log_job
+            from services.supabase_client import upload_to_storage
             # build files summary
             file_links = []
             for lc, f in files.items():
-                file_links.append({"lang": lc, "url": f"/api/carousel/download/{job_id}/{lc}/carousel"})
+                public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['carousel_filename']}", f["carousel_path"], "text/html")
+                url_to_use = public_url if public_url else f"/api/carousel/download/{job_id}/{lc}/carousel"
+                file_links.append({"lang": lc, "url": url_to_use})
             log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links})
         except Exception as e:
             print(f"[carousel_service] History log failed: {e}")
