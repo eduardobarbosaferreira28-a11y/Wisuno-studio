@@ -78,13 +78,13 @@ const dashboardPage = {
             if (entry.status === 'done') {
                 if (entry.job_type === 'carousel' && details.files) {
                     details.files.forEach(f => {
-                        linksHtml += `<a href="${f.url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">⬇ HTML (${f.lang})</a>`;
+                        linksHtml += `<a href="${f.url}" onclick="dashboardPage.forceDownload('${f.url}', 'carousel_${f.lang}.html'); return false;" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">⬇ HTML (${f.lang})</a>`;
                         if (f.caption_url) {
-                            linksHtml += `<a href="${f.caption_url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">⬇ Text (${f.lang})</a>`;
+                            linksHtml += `<a href="${f.caption_url}" onclick="dashboardPage.forceDownload('${f.caption_url}', 'caption_${f.lang}.txt'); return false;" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">⬇ Text (${f.lang})</a>`;
                         }
                     });
                 } else if (entry.job_type === 'video' && details.file) {
-                    linksHtml += `<a href="${details.file}" download class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
+                    linksHtml += `<a href="${details.file}" onclick="dashboardPage.forceDownload('${details.file}', 'video.mp4'); return false;" class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
                 }
             } else {
                 const errStr = details.error || 'Unknown error';
@@ -117,6 +117,27 @@ const dashboardPage = {
       list.innerHTML = html;
     } catch (err) {
       list.innerHTML = `<div class="text-danger" style="padding:20px;text-align:center;">Failed to load history.</div>`;
+    }
+  },
+
+  async forceDownload(url, filename) {
+    try {
+      if (typeof toast !== 'undefined') toast.info(`Downloading ${filename}...`, 2000);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      // Fallback: just open in new tab
+      window.open(url, '_blank');
     }
   }
 };
