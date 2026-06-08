@@ -50,6 +50,15 @@ if REACT_DIST.exists():
     print("Serving React Frontend")
     app.mount("/assets", StaticFiles(directory=str(REACT_DIST / "assets")), name="assets")
     
+    @app.get("/api/config.js")
+    def get_config_js():
+        url = os.getenv("SUPABASE_URL", "https://wkfwjdwjpavgzugwcgte.supabase.co")
+        key = os.getenv("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
+        return Response(
+            content=f"window.ENV = {{ SUPABASE_URL: '{url}', SUPABASE_ANON_KEY: '{key}' }};",
+            media_type="application/javascript"
+        )
+    
     # Provide a catch-all route for SPA navigation
     @app.get("/{full_path:path}", response_class=FileResponse)
     async def serve_react_app(full_path: str):
