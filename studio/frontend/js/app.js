@@ -49,8 +49,8 @@ const app = {
     history.replaceState(null, '', `#${page}`);
 
     // Trigger page-specific init hooks if available
-    if (page === 'setup' && window.setupPage) setupPage.onShow();
-    if (page === 'dashboard' && window.dashboardPage) dashboardPage.onShow();
+    if (page === 'setup' && typeof setupPage !== 'undefined') setupPage.onShow();
+    if (page === 'dashboard' && typeof dashboardPage !== 'undefined') dashboardPage.onShow();
   },
 
   init() {

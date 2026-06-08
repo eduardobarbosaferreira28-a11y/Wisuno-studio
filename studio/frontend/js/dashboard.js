@@ -32,6 +32,7 @@ const dashboardPage = {
           <div id="history-list" class="history-list">
             <div class="text-muted" style="padding:20px;text-align:center;">Loading history...</div>
           </div>
+          <div id="debug-panel" style="margin-top:20px;padding:10px;background:#111;color:#0f0;font-family:monospace;font-size:11px;border-radius:4px;white-space:pre-wrap;">[Debug Panel Ready]</div>
         </div>
       `;
     }
@@ -39,15 +40,17 @@ const dashboardPage = {
 
   async fetchHistory() {
     const list = document.getElementById('history-list');
+    const dbg = document.getElementById('debug-panel');
+    const log = (msg) => { if(dbg) dbg.innerHTML += '\\n' + msg; };
     if (!list) return;
 
     try {
       const ts = new Date().getTime();
-      console.log(`[Dashboard] Fetching /api/history?t=${ts}...`);
+      log(`Fetching /api/history?t=${ts}...`);
       const data = await apiFetch(`/api/history?t=${ts}`);
-      console.log(`[Dashboard] Raw data received:`, data);
+      log(`Raw data received: ${JSON.stringify(data).substring(0, 200)}...`);
       const history = data.history || [];
-      console.log(`[Dashboard] Parsed history array (${history.length} items):`, history);
+      log(`Parsed history array (${history.length} items)`);
       
       if (history.length === 0) {
         list.innerHTML = `<div class="text-muted" style="padding:20px;text-align:center;">No recent runs found.</div>`;
