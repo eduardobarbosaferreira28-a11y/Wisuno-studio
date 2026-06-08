@@ -688,18 +688,18 @@ def _ai_cut_analysis(vpath: Path, edit_dir: Path, probe: dict) -> list[dict]:
     packed_md = (edit_dir / "takes_packed.md").read_text(encoding="utf-8")
     duration  = probe.get("duration", 0)
 
-    target_s   = round(duration * 0.50)
-    target_min = round(duration * 0.35)
-    target_max = round(duration * 0.65)
+    target_s   = round(duration * 0.85)
+    target_min = round(duration * 0.70)
+    target_max = round(duration * 0.95)
 
-    prompt = f"""You are a professional social-media video editor. Cut this talking-head video to a tight reel.
+    prompt = f"""You are a professional social-media video editor. Clean up this talking-head video.
 
 VIDEO: {vpath.name}
 ORIGINAL DURATION: {duration:.1f}s
 SOURCE NAME (use exactly in output): {vpath.stem}
 
 TARGET OUTPUT: {target_s}s  (range: {target_min}–{target_max}s)
-Remove roughly half the video. Be aggressive.
+Keep the majority of the video. Only cut obvious filler words, long silences, and completely botched sentences. Do NOT remove important context or substantive points.
 
 TRANSCRIPT (phrase-level with word-boundary timestamps):
 {packed_md}

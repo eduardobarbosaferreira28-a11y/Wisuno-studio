@@ -765,7 +765,7 @@ def mix_audio_with_music(
     video_path:  Path,
     music_path:  Path,
     output_path: Path,
-    music_db:    float = -18.0,
+    music_db:    float = -26.0,
 ) -> None:
     """
     Mix background music under the voice track:
