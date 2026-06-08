@@ -78,7 +78,10 @@ const dashboardPage = {
             if (entry.status === 'done') {
                 if (entry.job_type === 'carousel' && details.files) {
                     details.files.forEach(f => {
-                        linksHtml += `<a href="${f.url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);">⬇ ${f.lang}</a>`;
+                        linksHtml += `<a href="${f.url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">⬇ HTML (${f.lang})</a>`;
+                        if (f.caption_url) {
+                            linksHtml += `<a href="${f.caption_url}" download class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">⬇ Text (${f.lang})</a>`;
+                        }
                     });
                 } else if (entry.job_type === 'video' && details.file) {
                     linksHtml += `<a href="${details.file}" download class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;

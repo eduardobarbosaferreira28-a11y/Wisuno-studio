@@ -215,7 +215,11 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
             for lc, f in files.items():
                 public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['carousel_filename']}", f["carousel_path"], "text/html")
                 url_to_use = public_url if public_url else f"/api/carousel/download/{job_id}/{lc}/carousel"
-                file_links.append({"lang": lc, "url": url_to_use})
+                
+                cap_public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['caption_filename']}", f["caption_path"], "text/plain")
+                cap_url_to_use = cap_public_url if cap_public_url else f"/api/carousel/download/{job_id}/{lc}/caption"
+                
+                file_links.append({"lang": lc, "url": url_to_use, "caption_url": cap_url_to_use})
             log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links})
         except Exception as e:
             print(f"[carousel_service] History log failed: {e}")
