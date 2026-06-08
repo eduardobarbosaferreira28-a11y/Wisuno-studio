@@ -6,3 +6,6 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 playwright>=1.44.0
 higgsfield-client>=0.1.0
+fastapi
+uvicorn
+supabase

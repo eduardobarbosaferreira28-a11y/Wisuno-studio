@@ -43,39 +43,29 @@ app.add_middleware(
 
 # ── Static files ──────────────────────────────────────────────────────────────
 
-REACT_DIST = BACKEND_DIR.parent / "react-frontend" / "dist"
 OLD_FRONTEND = BACKEND_DIR.parent / "frontend"
 
-if REACT_DIST.exists():
-    print("Serving React Frontend")
-    app.mount("/assets", StaticFiles(directory=str(REACT_DIST / "assets")), name="assets")
-    
-    @app.get("/api/config.js")
-    def get_config_js():
-        url = os.getenv("SUPABASE_URL", "https://wkfwjdwjpavgzugwcgte.supabase.co")
-        key = os.getenv("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
-        return Response(
-            content=f"window.ENV = {{ SUPABASE_URL: '{url}', SUPABASE_ANON_KEY: '{key}' }};",
-            media_type="application/javascript"
-        )
-    
-    # Provide a catch-all route for SPA navigation
-    @app.get("/{full_path:path}", response_class=FileResponse)
-    async def serve_react_app(full_path: str):
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API route not found")
-        return REACT_DIST / "index.html"
-else:
-    print("Serving Vanilla Frontend")
-    app.mount("/css", StaticFiles(directory=str(OLD_FRONTEND / "css")), name="css")
-    app.mount("/js",  StaticFiles(directory=str(OLD_FRONTEND / "js")),  name="js")
-    
-    @app.get("/")
-    async def serve_vanilla_index():
-        return FileResponse(OLD_FRONTEND / "index.html")
-    @app.get("/login")
-    async def serve_vanilla_login():
-        return FileResponse(OLD_FRONTEND / "login.html")
+print("Serving Vanilla Frontend")
+app.mount("/css", StaticFiles(directory=str(OLD_FRONTEND / "css")), name="css")
+app.mount("/js",  StaticFiles(directory=str(OLD_FRONTEND / "js")),  name="js")
+
+@app.get("/api/config.js")
+def get_config_js():
+    url = os.environ.get("SUPABASE_URL", "https://wkfwjdwjpavgzugwcgte.supabase.co")
+    key = os.environ.get("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
+    return Response(
+        content=f"window.ENV = {{ SUPABASE_URL: '{url}', SUPABASE_ANON_KEY: '{key}' }};",
+        media_type="application/javascript"
+    )
+
+@app.get("/")
+async def serve_vanilla_index():
+    return FileResponse(OLD_FRONTEND / "index.html")
+@app.get("/login")
+async def serve_vanilla_login():
+    return FileResponse(OLD_FRONTEND / "login.html")
+
+
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 

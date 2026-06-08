@@ -2,9 +2,9 @@
  * app.js — Wisuno Studio client-side router & global utilities
  */
 
-// Fallback keys if the backend setup page hasn't fully loaded them yet
-const SUPABASE_URL = "https://wkfwjdwjpavgzugwcgte.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF";
+// Use dynamic environment variables injected by FastAPI backend
+const SUPABASE_URL = window.ENV?.SUPABASE_URL || "https://wkfwjdwjpavgzugwcgte.supabase.co";
+const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF";
 window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ── Toast notifications ──────────────────────────────────── */

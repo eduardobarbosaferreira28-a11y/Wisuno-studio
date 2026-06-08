@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/main.css">
   
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- JS Libraries -->
+  <script src="/api/config.js"></script>
+  <script src="/js/supabase.js"></script>
   
   <style>
     body {
@@ -193,8 +194,8 @@
         }
       });
       
-      const SUPABASE_URL = "https://wkfwjdwjpavgzugwcgte.supabase.co";
-      const SUPABASE_ANON_KEY = "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF";
+      const SUPABASE_URL = window.ENV?.SUPABASE_URL || "https://wkfwjdwjpavgzugwcgte.supabase.co";
+      const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF";
       
       if (!window.supabase) {
         throw new Error("Supabase SDK failed to load. Please disable ad-blockers or try a different browser.");
