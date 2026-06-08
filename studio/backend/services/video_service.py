@@ -594,12 +594,11 @@ def _process_music(raw_mp3: Path, out_mp3: Path, edit_duration: float) -> None:
 
 def _mix_audio(video_path: Path, music_path: Path, out_path: Path) -> None:
     """
-    Mix voice + music using amix normalize=0 (CRITICAL — preserves voice level).
-    Spec formula:
-      [1:a]volume=0.25[music];[0:a][music]amix=inputs=2:duration=first:normalize=0[aout]
+    Mix voice + music using amix normalize=0.
+    Forces mono output (-ac 1) to fix L/R ear splitting from mono/stereo mismatch.
     """
     filter_complex = (
-        "[1:a]volume=0.25[music];"
+        "[1:a]volume=0.08[music];"
         "[0:a][music]amix=inputs=2:duration=first:normalize=0[aout]"
     )
     subprocess.run([
@@ -610,7 +609,7 @@ def _mix_audio(video_path: Path, music_path: Path, out_path: Path) -> None:
         "-map", "0:v",
         "-map", "[aout]",
         "-c:v", "copy",
-        "-c:a", "aac", "-b:a", "192k",
+        "-c:a", "aac", "-b:a", "192k", "-ac", "1",
         "-movflags", "+faststart",
         str(out_path),
     ], check=True, capture_output=True)
