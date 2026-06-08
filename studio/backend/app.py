@@ -7,9 +7,10 @@ Serves the frontend SPA and exposes API routers.
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -115,19 +116,11 @@ async def health():
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    target = FRONTEND_DIR / full_path
+    target = OLD_FRONTEND / full_path
     if target.exists() and target.is_file():
         return FileResponse(str(target))
         
-    index = FRONTEND_DIR / "index.html"
-    if index.exists():
-        return FileResponse(str(index), media_type="text/html")
-    return HTMLResponse("<h1>Frontend not found</h1>", status_code=404)
-
-
-@app.get("/")
-async def serve_root():
-    index = FRONTEND_DIR / "index.html"
+    index = OLD_FRONTEND / "index.html"
     if index.exists():
         return FileResponse(str(index), media_type="text/html")
     return HTMLResponse("<h1>Frontend not found</h1>", status_code=404)
