@@ -248,9 +248,6 @@ const videoPage = {
         <button class="btn btn-secondary" style="width:100%;margin-top:20px;" onclick="videoPage.reset()">
           ↩ Process Another Video
         </button>
-        <button class="btn btn-ghost" style="width:100%;margin-top:10px;font-size:10px;" onclick="videoPage._showDone('/test.mp4', {title:'Debug Title', caption:'Debug Caption', hashtags:['#debug']})">
-          🛠 Debug _showDone
-        </button>
       </div>
 
       <div class="card" id="video-error-card" style="display:none;">
