@@ -61,7 +61,15 @@ def get_config_js():
 
 @app.get("/")
 async def serve_vanilla_index():
-    return FileResponse(OLD_FRONTEND / "index.html")
+    return FileResponse(
+        OLD_FRONTEND / "index.html",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+    )
+
 @app.get("/login")
 async def serve_vanilla_login():
     return FileResponse(OLD_FRONTEND / "login.html")
