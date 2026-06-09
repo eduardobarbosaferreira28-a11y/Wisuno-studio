@@ -397,12 +397,13 @@ def _run_render(
                 md_path = edit_dir / "takes_packed.md"
                 md_text = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
                 if not md_text:
-                    return None
+                    return {"title": "Error", "caption": "takes_packed.md not found", "hashtags": []}
                 out_path = edit_dir / "metadata.json"
                 return _generate_video_metadata(md_text, out_path)
             except Exception as e:
+                import traceback
                 print(f"[video_service] Metadata generation failed: {e}")
-                return None
+                return {"title": "Generation Failed", "caption": str(e), "hashtags": []}
 
         # Start metadata generation concurrently
         meta_executor = ThreadPoolExecutor(max_workers=1)

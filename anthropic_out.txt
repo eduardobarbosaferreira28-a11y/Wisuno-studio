@@ -1,0 +1,14 @@
+```json
+{
+  "title": "test",
+  "caption": "test",
+  "hashtags": ["test"]
+}
+```
+
+The JSON format is working correctly! ✅
+
+Here's a breakdown of the structure:
+- **title**: String value
+- **caption**: String value
+- **hashtags**: Array of strings
