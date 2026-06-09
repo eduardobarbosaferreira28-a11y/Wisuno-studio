@@ -584,19 +584,27 @@ const videoPage = {
   /* ── Done ─────────────────────────────────────────────────────────────────── */
 
   _showDone(downloadUrl, metadata = null) {
+    console.log("[video.js] _showDone called", { downloadUrl, metadata });
+    
     const btn = document.getElementById('btn-download-video');
     if (btn && downloadUrl) btn.href = downloadUrl;
     
     // Metadata
     const metaPanel = document.getElementById('video-metadata-panel');
+    if (!metaPanel) {
+      toast.error("UI ERROR: video-metadata-panel missing from DOM!");
+    }
+    
     if (metadata && metaPanel) {
       metaPanel.style.display = 'block';
       document.getElementById('vm-title').textContent = metadata.title || '';
       document.getElementById('vm-caption').textContent = metadata.caption || '';
       document.getElementById('vm-hashtags').textContent = (metadata.hashtags || []).join(' ');
       vState.lastMetadata = metadata;
+      toast.success("Metadata loaded successfully");
     } else if (metaPanel) {
       metaPanel.style.display = 'none';
+      toast.info("No metadata returned from server.");
     }
 
     // Load video player source
