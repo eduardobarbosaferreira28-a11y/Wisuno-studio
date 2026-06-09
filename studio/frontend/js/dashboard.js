@@ -85,6 +85,9 @@ const dashboardPage = {
                     });
                 } else if (entry.job_type === 'video' && details.file) {
                     linksHtml += `<a href="${details.file}" onclick="dashboardPage.forceDownload('${details.file}', 'video.mp4'); return false;" class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
+                    if (details.metadata_url) {
+                        linksHtml += `<a href="${details.metadata_url}" onclick="dashboardPage.forceDownload('${details.metadata_url}', 'metadata.json'); return false;" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-left:4px;">⬇ Text</a>`;
+                    }
                 }
             } else {
                 const errStr = details.error || 'Unknown error';

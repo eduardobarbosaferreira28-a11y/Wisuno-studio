@@ -392,6 +392,22 @@ def _run_render(
         def _do_outro():
             return build_outro(edit_dir)
 
+        def _do_metadata():
+            try:
+                md_path = edit_dir / "takes_packed.md"
+                md_text = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
+                if not md_text:
+                    return None
+                out_path = edit_dir / "metadata.json"
+                return _generate_video_metadata(md_text, out_path)
+            except Exception as e:
+                print(f"[video_service] Metadata generation failed: {e}")
+                return None
+
+        # Start metadata generation concurrently
+        meta_executor = ThreadPoolExecutor(max_workers=1)
+        fut_meta = meta_executor.submit(_do_metadata)
+
         # Run UI renders sequentially to conserve memory (Chromium is heavy)
         with ThreadPoolExecutor(max_workers=1) as executor:
             fut_cap  = executor.submit(_do_captions)
@@ -401,6 +417,11 @@ def _run_render(
             cap_overlay_path = fut_cap.result()
             disc_overlay_path = fut_disc.result()
             outro_path = fut_out.result()
+            
+        metadata = fut_meta.result()
+        if metadata:
+            job["metadata_content"] = metadata
+            job["metadata_local"] = str(edit_dir / "metadata.json")
 
         if cap_overlay_path:
             overlays.insert(0, {
@@ -525,9 +546,16 @@ def _run_render(
             public_url = upload_to_storage("wisuno-assets", f"videos/{job_id}/final_music.mp4", str(output_path), "video/mp4")
             url_to_use = public_url if public_url else f"/api/video/download/{job_id}"
             
+            meta_url_to_use = None
+            if job.get("metadata_local") and Path(job["metadata_local"]).exists():
+                meta_public = upload_to_storage("wisuno-assets", f"videos/{job_id}/caption.txt", job["metadata_local"], "application/json")
+                if meta_public:
+                    meta_url_to_use = meta_public
+                    job["metadata_url"] = meta_public
+
             log_job(
                 job_id, "video", "done",
-                {"topic": job.get("topic", "Video"), "file": url_to_use, "size_mb": size_mb}
+                {"topic": job.get("topic", "Video"), "file": url_to_use, "size_mb": size_mb, "metadata_url": meta_url_to_use}
             )
         except Exception as e:
             print(f"[video_service] History log failed: {e}")
@@ -802,3 +830,43 @@ Beat labels: HOOK, POINT, EXAMPLE, INSIGHT, TRANSITION, CTA, CLOSING"""
         json.dumps(valid, indent=2), encoding="utf-8"
     )
     return valid
+
+def _generate_video_metadata(packed_md_text: str, out_path: Path) -> dict:
+    """Use Anthropic API to generate Title, Caption, and Hashtags."""
+    import json
+    import re
+    from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
+    
+    if not ANTHROPIC_API_KEY:
+        raise ValueError("Anthropic API key is missing.")
+        
+    import anthropic
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
+    system_prompt = (
+        "You are an expert social media manager for viral news videos. "
+        "Based on the provided video transcript, generate a catchy, highly engaging title, "
+        "a compelling caption for Instagram/TikTok that summarizes the core hook, and a list of 5-8 relevant hashtags.\n"
+        "Return ONLY a raw JSON object with the following schema: {\"title\": \"...\", \"caption\": \"...\", \"hashtags\": [\"#...\", ...]}"
+    )
+    
+    response = client.messages.create(
+        model=ANTHROPIC_MODEL,
+        max_tokens=300,
+        temperature=0.7,
+        system=system_prompt,
+        messages=[{"role": "user", "content": f"Transcript:\n{packed_md_text}"}]
+    )
+    
+    text = response.content[0].text
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if not match:
+        raise ValueError("AI did not return valid JSON.")
+        
+    data = json.loads(match.group(0))
+    data["title"] = data.get("title", "Untitled Video")
+    data["caption"] = data.get("caption", "")
+    data["hashtags"] = data.get("hashtags", [])
+    
+    out_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return data

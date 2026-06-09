@@ -236,7 +236,16 @@ const videoPage = {
            style="display:inline-flex;width:100%;justify-content:center;padding:14px;text-decoration:none;">
           ⬇ Download final.mp4
         </a>
-        <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="videoPage.reset()">
+        <div id="video-metadata-panel" style="display:none; margin-top:20px; padding:16px; background:var(--surface-2); border-radius:8px; border:1px solid var(--border);">
+          <div style="font-weight:600; font-size:14px; margin-bottom:12px; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+            📝 AI Metadata
+            <button class="btn btn-ghost btn-sm" onclick="videoPage.copyMetadata()" style="padding:4px 8px; font-size:11px;">📋 Copy All</button>
+          </div>
+          <div style="font-size:13px; color:var(--text-primary); margin-bottom:8px;"><strong>Title:</strong> <span id="vm-title"></span></div>
+          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px; white-space:pre-wrap;" id="vm-caption"></div>
+          <div style="font-size:13px; color:var(--accent); font-weight:500;" id="vm-hashtags"></div>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;margin-top:20px;" onclick="videoPage.reset()">
           ↩ Process Another Video
         </button>
       </div>
@@ -414,7 +423,7 @@ const videoPage = {
         if (sub) sub.textContent = data.steps?.[5]?.note || 'Rendering…';
       } else if (data.status === 'done') {
         this._stopPolling();
-        this._showDone(data.download_url);
+        this._showDone(data.download_url, data.metadata);
       } else if (data.status === 'error') {
         this._stopPolling();
         const failedStepIndex = (data.steps || []).findIndex(s => s.status === 'error');
@@ -574,10 +583,22 @@ const videoPage = {
 
   /* ── Done ─────────────────────────────────────────────────────────────────── */
 
-  _showDone(downloadUrl) {
+  _showDone(downloadUrl, metadata = null) {
     const btn = document.getElementById('btn-download-video');
     if (btn && downloadUrl) btn.href = downloadUrl;
     
+    // Metadata
+    const metaPanel = document.getElementById('video-metadata-panel');
+    if (metadata && metaPanel) {
+      metaPanel.style.display = 'block';
+      document.getElementById('vm-title').textContent = metadata.title || '';
+      document.getElementById('vm-caption').textContent = metadata.caption || '';
+      document.getElementById('vm-hashtags').textContent = (metadata.hashtags || []).join(' ');
+      vState.lastMetadata = metadata;
+    } else if (metaPanel) {
+      metaPanel.style.display = 'none';
+    }
+
     // Load video player source
     const player = document.getElementById('video-preview-player');
     if (player && vState.jobId) {
@@ -590,6 +611,18 @@ const videoPage = {
     if (appBtn) { appBtn.disabled = false; appBtn.textContent = '✅ Approve & Render'; }
     this._showCard('done');
     toast.success('Your video is ready!');
+  },
+
+  copyMetadata() {
+    if (!vState.lastMetadata) return;
+    const { title, caption, hashtags } = vState.lastMetadata;
+    const tags = (hashtags || []).join(' ');
+    const text = `${title}\n\n${caption}\n\n${tags}`;
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success('Metadata copied to clipboard!');
+    }).catch(() => {
+      toast.error('Failed to copy metadata');
+    });
   },
 
   /* ── Error ────────────────────────────────────────────────────────────────── */

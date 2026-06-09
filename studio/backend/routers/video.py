@@ -148,6 +148,7 @@ async def job_status(job_id: str, user: dict = Depends(get_current_user)):
         "render_path":    job.get("render_path"),
         "error":          job.get("error"),
         "download_url":   f"/api/video/download/{job_id}" if job.get("render_path") else None,
+        "metadata":       job.get("metadata_content")
     }
 
 
