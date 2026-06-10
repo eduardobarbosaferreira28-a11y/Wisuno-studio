@@ -35,6 +35,7 @@ async def chat_with_higgsfield(messages: List[Dict[str, Any]], system_prompt: st
         command=command,
         args=["-y", "@higgsfield-ai/skills"],
         env=os.environ.copy() # Passes HIGGSFIELD_API_KEY automatically
+    )
     try:
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
