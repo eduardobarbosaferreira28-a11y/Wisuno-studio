@@ -63,6 +63,13 @@
         </svg>
         Video Studio
       </a>
+
+      <a class="nav-item" data-page="higgsfield" href="#higgsfield" id="nav-higgsfield">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Higgsfield Studio
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -161,6 +168,54 @@
       <!-- videoPage.init() injects the full UI here -->
     </div>
 
+    <!-- ── Higgsfield Chat page ─────────────────────────────── -->
+    <div class="page-view" id="page-higgsfield" style="display:flex; padding:0; height:100vh;">
+      
+      <!-- Left sidebar: Chat History -->
+      <div id="hf-sidebar" style="width:260px; border-right:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; background:var(--bg-lighter);">
+        <div style="padding:20px; border-bottom:1px solid rgba(255,255,255,0.08);">
+          <button id="hf-new-chat" class="btn btn-primary" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Chat
+          </button>
+        </div>
+        <div id="hf-sessions-list" style="flex:1; overflow-y:auto; padding:10px;">
+          <!-- Sessions injected here -->
+        </div>
+      </div>
+
+      <!-- Right area: Chat Interface -->
+      <div id="hf-chat-area" style="flex:1; display:flex; flex-direction:column; background:var(--bg-dark);">
+        
+        <!-- Header -->
+        <div style="padding:20px 30px; border-bottom:1px solid rgba(255,255,255,0.08); background:var(--bg-darker); display:flex; align-items:center; gap:12px;">
+          <h2 style="font-size:18px; font-weight:600; margin:0;" id="hf-chat-title">Higgsfield Studio</h2>
+          <span class="badge" style="background:rgba(245, 106, 33, 0.1); color:var(--brand-primary); font-size:11px;">Powered by Claude & Higgsfield Skills</span>
+        </div>
+
+        <!-- Messages -->
+        <div id="hf-messages" style="flex:1; overflow-y:auto; padding:30px; display:flex; flex-direction:column; gap:20px;">
+          <div class="hf-msg assistant" style="align-self:flex-start; max-width:80%; background:var(--bg-lighter); padding:16px 20px; border-radius:12px; border-top-left-radius:2px;">
+            Hello! I am the Wisuno AI Director, equipped with Higgsfield skills. What kind of promotional banner or video would you like to generate today?
+          </div>
+        </div>
+
+        <!-- Input Area -->
+        <div style="padding:20px 30px; background:var(--bg-darker); border-top:1px solid rgba(255,255,255,0.08);">
+          <form id="hf-chat-form" style="display:flex; gap:12px; position:relative;">
+            <textarea id="hf-input" placeholder="E.g., Generate a promotional banner for a new sneaker release in a neon city..." rows="1" style="flex:1; background:var(--bg-lighter); border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:12px 20px; color:#fff; font-family:inherit; font-size:14px; resize:none; overflow:hidden; outline:none; transition: border-color 0.2s;"></textarea>
+            <button type="submit" id="hf-send-btn" class="btn btn-primary" style="border-radius:24px; padding:0 24px; display:flex; align-items:center; justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </form>
+          <div style="text-align:center; margin-top:12px; font-size:11px; color:rgba(255,255,255,0.4);">
+            AI can make mistakes. Check generated assets before publishing.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -201,5 +256,6 @@
   <script src="/js/setup.js?v=14"></script>
   <script src="/js/carousel.js?v=14"></script>
   <script src="/js/video.js?v=14"></script>
+  <script src="/js/higgsfield.js?v=1"></script>
 </body>
 </html>

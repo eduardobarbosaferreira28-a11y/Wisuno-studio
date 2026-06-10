@@ -29,7 +29,7 @@ const toast = {
 const app = {
   currentPage: 'dashboard',
 
-  pages: ['dashboard', 'setup', 'carousel', 'video'],
+  pages: ['dashboard', 'setup', 'carousel', 'video', 'higgsfield'],
 
   navigate(page) {
     if (!this.pages.includes(page)) page = 'dashboard';
@@ -51,6 +51,12 @@ const app = {
     // Trigger page-specific init hooks if available
     if (page === 'setup' && typeof setupPage !== 'undefined') setupPage.onShow();
     if (page === 'dashboard' && typeof dashboardPage !== 'undefined') dashboardPage.onShow();
+    if (page === 'higgsfield' && typeof higgsfieldPage !== 'undefined') {
+      if (!higgsfieldPage._initialized) {
+        higgsfieldPage.init();
+        higgsfieldPage._initialized = true;
+      }
+    }
   },
 
   init() {

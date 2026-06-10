@@ -81,11 +81,13 @@ async def serve_vanilla_login():
 from routers import carousel as carousel_router  # noqa: E402
 from routers import video    as video_router     # noqa: E402
 from routers import history  as history_router   # noqa: E402
+from routers import higgsfield as higgsfield_router
 
 app.include_router(setup_router.router)
 app.include_router(carousel_router.router)
 app.include_router(video_router.router)
 app.include_router(history_router.router)
+app.include_router(higgsfield_router.router)
 
 
 # ── Job Cleanup ───────────────────────────────────────────────────────────────
