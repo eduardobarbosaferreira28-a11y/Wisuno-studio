@@ -85,9 +85,6 @@ async def handle_chat(req: ChatRequest):
         "content": assistant_reply
     }).execute()
     
-    # Update session updated_at
-    sb.table("chat_sessions").update({"title": sb.table("chat_sessions").select("title").eq("id", session_id).execute().data[0]["title"]}).eq("id", session_id).execute()
-
     return {
         "session_id": session_id,
         "reply": assistant_reply

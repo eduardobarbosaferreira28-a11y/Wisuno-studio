@@ -228,7 +228,7 @@ window.higgsfieldPage = {
     } catch (e) {
       console.error("Failed to send message", e);
       if (loadingDiv) loadingDiv.remove();
-      app.showToast("Failed to communicate with AI.", "error");
+      toast.error("Failed to communicate with AI: " + e.message);
     }
   }
 };
