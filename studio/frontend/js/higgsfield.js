@@ -216,8 +216,13 @@ window.higgsfieldPage = {
         this.currentSessionId = data.session_id;
       }
 
-      this.messages.push({ role: "assistant", content: data.reply });
-      this.renderMessages();
+      if (data.reply) {
+        this.messages.push({ role: "assistant", content: data.reply });
+        this.renderMessages();
+      } else {
+        throw new Error(data.detail || "Empty reply from backend");
+      }
+
       this.loadSessions(); // refresh title if it was new
 
     } catch (e) {
