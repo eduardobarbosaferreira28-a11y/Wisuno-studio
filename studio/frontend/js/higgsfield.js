@@ -96,7 +96,7 @@ window.higgsfieldPage = {
     if (this.messages.length === 0) {
       container.innerHTML = `
         <div class="hf-msg assistant" style="align-self:flex-start; max-width:80%; background:var(--bg-lighter); padding:16px 20px; border-radius:12px; border-top-left-radius:2px;">
-          Hello! I am the Wisuno AI Director, equipped with Higgsfield skills. What kind of promotional banner or video would you like to generate today?
+          Hello! I am the Wisuno AI Director. What would you like to generate today?
         </div>
       `;
       return;
