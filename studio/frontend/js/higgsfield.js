@@ -140,11 +140,34 @@ window.higgsfieldPage = {
         return `<br><img src="${url}" style="max-width:100%; border-radius:8px; margin-top:10px;" />`;
       });
 
+      // Parse [Option] syntax
+      let optionsHtml = "";
+      htmlContent = htmlContent.replace(/\[Option\]\s*(.*?)<br>/gi, (match, p1) => {
+        const optionText = p1.trim();
+        optionsHtml += `<button class="hf-option-btn" style="display:block; width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid rgba(255,107,0,0.3); border-radius:8px; padding:10px 14px; margin-top:8px; color:#fff; font-family:inherit; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="window.higgsfieldPage.submitOption('${optionText.replace(/'/g, "\\\\'")}')">${optionText}</button>`;
+        return "";
+      });
+      // Catch [Option] if it's the very last thing without a <br>
+      htmlContent = htmlContent.replace(/\[Option\]\s*(.*?)$/gi, (match, p1) => {
+        const optionText = p1.trim();
+        optionsHtml += `<button class="hf-option-btn" style="display:block; width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid rgba(255,107,0,0.3); border-radius:8px; padding:10px 14px; margin-top:8px; color:#fff; font-family:inherit; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="window.higgsfieldPage.submitOption('${optionText.replace(/'/g, "\\\\'")}')">${optionText}</button>`;
+        return "";
+      });
+
       div.innerHTML = htmlContent;
+      if (optionsHtml && msg.role === "assistant") {
+        div.innerHTML += `<div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">${optionsHtml}</div>`;
+      }
       container.appendChild(div);
     });
 
     container.scrollTop = container.scrollHeight;
+  },
+
+  submitOption(text) {
+    const input = document.getElementById("hf-input");
+    input.value = text;
+    this.sendMessage();
   },
 
   async sendMessage() {
