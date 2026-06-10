@@ -32,23 +32,26 @@ async def handle_chat(req: ChatRequest):
     sb = get_supabase()
     session_id = req.session_id
 
-    # 1. Ensure Session exists
-    if not session_id:
-        # Create a new session
-        first_user_msg = next((m.content for m in req.messages if m.role == "user"), "New Chat")
-        title = first_user_msg[:50] + "..." if len(first_user_msg) > 50 else first_user_msg
-        res = sb.table("chat_sessions").insert({"title": title}).execute()
-        if not res.data:
-            raise HTTPException(status_code=500, detail="Failed to create session")
-        session_id = res.data[0]["id"]
-    
-    # 2. Get the latest user message to save to DB immediately
-    latest_user_message = req.messages[-1]
-    sb.table("chat_messages").insert({
-        "session_id": session_id,
-        "role": latest_user_message.role,
-        "content": latest_user_message.content
-    }).execute()
+    try:
+        # 1. Ensure Session exists
+        if not session_id:
+            # Create a new session
+            first_user_msg = next((m.content for m in req.messages if m.role == "user"), "New Chat")
+            title = first_user_msg[:50] + "..." if len(first_user_msg) > 50 else first_user_msg
+            res = sb.table("chat_sessions").insert({"title": title}).execute()
+            if not res.data:
+                raise HTTPException(status_code=500, detail="Failed to create session")
+            session_id = res.data[0]["id"]
+        
+        # 2. Get the latest user message to save to DB immediately
+        latest_user_message = req.messages[-1]
+        sb.table("chat_messages").insert({
+            "session_id": session_id,
+            "role": latest_user_message.role,
+            "content": latest_user_message.content
+        }).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     # 3. Format messages for Anthropic
     anthropic_msgs = [{"role": m.role, "content": m.content} for m in req.messages]
@@ -79,11 +82,16 @@ async def handle_chat(req: ChatRequest):
         assistant_reply = f"Error communicating with AI: {str(e)}"
         
     # 5. Save assistant reply to DB
-    sb.table("chat_messages").insert({
-        "session_id": session_id,
-        "role": "assistant",
-        "content": assistant_reply
-    }).execute()
+    try:
+        sb.table("chat_messages").insert({
+            "session_id": session_id,
+            "role": "assistant",
+            "content": assistant_reply
+        }).execute()
+    except Exception as e:
+        # We don't want to crash the endpoint if saving the assistant's reply fails,
+        # we can just append it to the reply or log it.
+        assistant_reply += f"\n\n[Warning: Failed to save reply to history: {str(e)}]"
     
     return {
         "session_id": session_id,
