@@ -5,8 +5,8 @@ from typing import List, Dict, Any
 
 from anthropic import AsyncAnthropic
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from mcp import ClientSession
+from mcp.client.sse import sse_client
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +27,11 @@ async def chat_with_higgsfield(messages: List[Dict[str, Any]], system_prompt: st
 
     anthropic = AsyncAnthropic(api_key=anthropic_api_key)
 
-    # Prepare MCP Server execution
-    # On Windows, npx.cmd is required when using subprocess directly, 
-    # but stdio_client uses asyncio.create_subprocess_exec under the hood.
-    command = "npx.cmd" if os.name == 'nt' else "npx"
-    server_params = StdioServerParameters(
-        command=command,
-        args=["-y", "@higgsfield-ai/skills"],
-        env=os.environ.copy() # Passes HIGGSFIELD_API_KEY automatically
-    )
     try:
-        async with stdio_client(server_params) as (read, write):
+        async with sse_client(
+            url="https://mcp.higgsfield.ai/mcp",
+            headers={"Authorization": f"Bearer {higgsfield_api_key}"}
+        ) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 
