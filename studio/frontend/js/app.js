@@ -28,11 +28,14 @@ const toast = {
 /* ── Client-side router ───────────────────────────────────── */
 const app = {
   currentPage: 'dashboard',
+  isAdmin: undefined,   // resolved from /api/me after auth
 
   pages: ['dashboard', 'setup', 'carousel', 'video', 'higgsfield'],
 
   navigate(page) {
     if (!this.pages.includes(page)) page = 'dashboard';
+    // Settings is admin-only; non-admins (or before role is known) get the dashboard.
+    if (page === 'setup' && this.isAdmin !== true) page = 'dashboard';
     this.currentPage = page;
 
     // Update page views
@@ -60,6 +63,10 @@ const app = {
   },
 
   init() {
+    // Hide the admin-only Settings nav until /api/me confirms the role (no flash).
+    const navSetup = document.getElementById('nav-setup');
+    if (navSetup) navSetup.style.display = 'none';
+
     // Wire nav clicks
     document.querySelectorAll('.nav-item[data-page]').forEach(item => {
       item.addEventListener('click', (e) => {
@@ -68,13 +75,13 @@ const app = {
       });
     });
 
-    // Read initial hash
-    const hash = location.hash.replace('#', '').trim();
-    this.navigate(hash || 'dashboard');
+    // Read initial hash (remembered so an admin deep-linking to #setup still lands there)
+    this._pendingHash = location.hash.replace('#', '').trim();
+    this.navigate(this._pendingHash || 'dashboard');
 
     // Server health ping
     this._pingServer();
-    
+
     // Auth Check
     this._checkAuth();
   },
@@ -83,8 +90,9 @@ const app = {
     const { data: { session } } = await window.supabaseClient.auth.getSession();
     if (!session) {
       window.location.href = "login.html?v=3";
+      return;
     }
-    
+
     // Wire logout button
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -92,6 +100,34 @@ const app = {
         await window.supabaseClient.auth.signOut();
         window.location.href = "login.html?v=3";
       });
+    }
+
+    // Resolve role and gate admin-only UI (Settings nav + the setup banner).
+    await this._applyAccessControl();
+  },
+
+  async _applyAccessControl() {
+    let isAdmin = false;
+    try {
+      const me = await apiFetch('/api/me');
+      isAdmin = !!me.is_admin;
+    } catch (e) {
+      isAdmin = false;
+    }
+    this.isAdmin = isAdmin;
+
+    const navSetup = document.getElementById('nav-setup');
+    if (isAdmin) {
+      if (navSetup) navSetup.style.display = '';
+      // Run the dependency/key check (populates the Settings badge + the banner).
+      if (typeof setupPage !== 'undefined') setupPage.check();
+      // Honour an admin deep-link to #setup that was blocked before the role was known.
+      if (this._pendingHash === 'setup') this.navigate('setup');
+    } else {
+      if (navSetup) navSetup.style.display = 'none';
+      const banner = document.getElementById('setup-banner');
+      if (banner) banner.classList.remove('visible');
+      if (this.currentPage === 'setup') this.navigate('dashboard');
     }
   },
 

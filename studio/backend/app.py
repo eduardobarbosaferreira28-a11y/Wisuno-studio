@@ -10,7 +10,7 @@ import sys
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,6 +24,7 @@ for p in (str(BACKEND_DIR), str(PROJECT_ROOT)):
         sys.path.insert(0, p)
 
 from routers import setup as setup_router  # noqa: E402
+from dependencies.auth import get_current_user, user_id_of, email_of, is_admin  # noqa: E402
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,16 @@ def get_config_js():
         content=f"window.ENV = {{ SUPABASE_URL: '{url}', SUPABASE_ANON_KEY: '{key}' }};",
         media_type="application/javascript"
     )
+
+@app.get("/api/me")
+async def whoami(user: dict = Depends(get_current_user)):
+    """Identity + role for the logged-in user, used by the frontend to gate admin-only UI."""
+    return {
+        "user_id":  user_id_of(user),
+        "email":    email_of(user),
+        "is_admin": is_admin(user),
+    }
+
 
 @app.get("/")
 async def serve_vanilla_index():

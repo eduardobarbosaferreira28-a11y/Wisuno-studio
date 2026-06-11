@@ -227,8 +227,6 @@ const setupPage = {
   },
 };
 
-// Auto-check on load (after DOM and router are ready)
-document.addEventListener('DOMContentLoaded', () => {
-  // Small delay so app.js router runs first
-  setTimeout(() => setupPage.check(), 200);
-});
+// The setup dependency/key check (and its banner) is triggered by app.js only for
+// admins — see app._applyAccessControl(). Non-admins never run it, so the banner
+// and Settings page stay hidden for them.
