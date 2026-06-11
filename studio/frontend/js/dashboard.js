@@ -69,8 +69,11 @@ const dashboardPage = {
         for (const entry of entries) {
             const time = new Date(entry.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
             const details = entry.details || {};
-            const topic = details.topic || (entry.job_type === 'carousel' ? 'Carousel Generation' : 'Video Generation');
-            const typeIcon = entry.job_type === 'carousel' ? '🗂️' : '🎬';
+            const TYPE_LABELS = { carousel: 'Carousel Generation', video: 'Video Generation', gen_image: 'Gen Studio Image', gen_video: 'Gen Studio Video' };
+            const TYPE_ICONS  = { carousel: '🗂️', video: '🎬', gen_image: '🖼️', gen_video: '✨' };
+            let topic = details.prompt || details.topic || TYPE_LABELS[entry.job_type] || 'Generation';
+            if (topic.length > 70) topic = topic.substring(0, 70) + '…';
+            const typeIcon = TYPE_ICONS[entry.job_type] || '🗂️';
             const badgeClass = entry.status === 'done' ? 'badge-green' : 'badge-red';
             const badgeText = entry.status === 'done' ? 'Done' : 'Failed';
             
@@ -88,6 +91,10 @@ const dashboardPage = {
                     if (details.metadata_url) {
                         linksHtml += `<a href="${details.metadata_url}" onclick="dashboardPage.forceDownload('${details.metadata_url}', 'metadata.json'); return false;" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-left:4px;">⬇ Text</a>`;
                     }
+                } else if ((entry.job_type === 'gen_image' || entry.job_type === 'gen_video') && details.url) {
+                    const fname = entry.job_type === 'gen_image' ? 'image.png' : 'video.mp4';
+                    linksHtml += `<a href="${details.url}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;text-decoration:none;background:var(--surface-3);margin-right:4px;">↗ View</a>`;
+                    linksHtml += `<a href="${details.url}" onclick="dashboardPage.forceDownload('${details.url}', '${fname}'); return false;" class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px;text-decoration:none;">⬇ Download</a>`;
                 }
             } else {
                 const errStr = details.error || 'Unknown error';

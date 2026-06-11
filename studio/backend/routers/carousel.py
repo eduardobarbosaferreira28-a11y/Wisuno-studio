@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, user_id_of, is_admin
 from services.carousel_service import (
     ALL_LANGUAGES,
     LANGUAGE_FLAGS,
@@ -67,6 +67,7 @@ async def run_carousel(req: RunRequest, user: dict = Depends(get_current_user)):
         content_type=content_type,
         skip_images=req.skip_images,
         languages=languages,
+        user_id=user_id_of(user),
     )
     return {"job_id": job_id, "languages": languages}
 
@@ -76,6 +77,8 @@ async def job_status(job_id: str, user: dict = Depends(get_current_user)):
     """Poll job progress. Returns steps array + status."""
     job = get_job(job_id)
     if not job:
+        raise HTTPException(404, f"Job '{job_id}' not found.")
+    if job.get("user_id") != user_id_of(user) and not is_admin(user):
         raise HTTPException(404, f"Job '{job_id}' not found.")
 
     # Build a clean response (don't expose internal paths directly)

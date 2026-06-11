@@ -28,6 +28,7 @@ from google.genai import types
 
 from services.supabase_client import upload_to_storage
 from services.disclaimer import overlay_disclaimer_on_image, overlay_disclaimer_on_video
+from services.history_service import log_job
 
 logger = logging.getLogger(__name__)
 
@@ -269,19 +270,33 @@ async def _run_video_job(job_id: str, prompt: str, aspect_ratio: str) -> None:
         url = await asyncio.to_thread(_generate_video_blocking, prompt, aspect_ratio, job_id)
         VIDEO_JOBS[job_id].update(status="done", url=url, error=None)
         logger.info("Video job %s finished: %s", job_id, url)
+        # Log to the per-user dashboard history (non-fatal on failure).
+        try:
+            log_job(job_id, "gen_video", "done",
+                    {"type": "video", "url": url, "prompt": prompt},
+                    user_id=VIDEO_JOBS[job_id].get("user_id"))
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to log gen_video to history")
     except Exception as exc:  # noqa: BLE001
         logger.exception("Video job %s failed", job_id)
         VIDEO_JOBS[job_id].update(status="error", url=None, error=str(exc))
 
 
 # ── Tool execution ────────────────────────────────────────────────────────────
-async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optional[str]) -> Tuple[str, Optional[str]]:
+async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optional[str],
+                        user_id: Optional[str] = None) -> Tuple[str, Optional[str]]:
     """Run a tool. Returns (text_result_for_claude, started_video_job_id_or_None)."""
     if name == "generate_image":
         prompt = tool_input.get("prompt", "")
         aspect = tool_input.get("aspect_ratio", "4:5")
         try:
             url = await asyncio.to_thread(_generate_image_blocking, prompt, aspect)
+            # Log to the per-user dashboard history (non-fatal on failure).
+            try:
+                log_job(uuid.uuid4().hex, "gen_image", "done",
+                        {"type": "image", "url": url, "prompt": prompt}, user_id=user_id)
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to log gen_image to history")
             return (
                 "Image generated successfully. You MUST embed it in your reply to the user "
                 f"using this exact markdown so it displays: ![generated image]({url})",
@@ -301,6 +316,7 @@ async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optio
             "error": None,
             "prompt": prompt,
             "session_id": session_id,
+            "user_id": user_id,
             "persisted": False,
         }
         asyncio.create_task(_run_video_job(job_id, prompt, aspect))
@@ -316,7 +332,7 @@ async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optio
 
 # ── Chat entry point ──────────────────────────────────────────────────────────
 async def chat(messages: List[Dict[str, Any]], system_prompt: str = "",
-               session_id: Optional[str] = None) -> Dict[str, Any]:
+               session_id: Optional[str] = None, user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Run the Claude tool-use loop with the Gemini generation tools.
     Returns {"reply": str, "video_jobs": [job_id, ...]}.
@@ -347,7 +363,7 @@ async def chat(messages: List[Dict[str, Any]], system_prompt: str = "",
         for block in response.content:
             if block.type == "tool_use":
                 logger.info("Claude invoking tool: %s", block.name)
-                result_text, vjob = await _execute_tool(block.name, block.input, session_id)
+                result_text, vjob = await _execute_tool(block.name, block.input, session_id, user_id)
                 if vjob:
                     started_video_jobs.append(vjob)
                 tool_results.append({

@@ -37,8 +37,7 @@ window.higgsfieldPage = {
 
   async loadSessions() {
     try {
-      const res = await fetch("/api/higgsfield/sessions");
-      const data = await res.json();
+      const data = await apiFetch("/api/higgsfield/sessions");
       this.renderSessions(data.sessions || []);
     } catch (e) {
       console.error("Failed to load sessions", e);
@@ -80,8 +79,7 @@ window.higgsfieldPage = {
     this.loadSessions();
 
     try {
-      const res = await fetch(`/api/higgsfield/sessions/${sessionId}/messages`);
-      const data = await res.json();
+      const data = await apiFetch(`/api/higgsfield/sessions/${sessionId}/messages`);
       this.messages = data.messages || [];
       this.renderMessages();
     } catch (e) {
@@ -195,7 +193,11 @@ window.higgsfieldPage = {
 
     const tick = async () => {
       try {
-        const res = await fetch(`/api/higgsfield/video_status/${jobId}`);
+        // Attach the Supabase JWT (quietly — no toast on transient poll errors).
+        let authHeader = {};
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (session) authHeader = { Authorization: `Bearer ${session.access_token}` };
+        const res = await fetch(`/api/higgsfield/video_status/${jobId}`, { headers: authHeader });
         const data = await res.json();
 
         if (data.status === "done" && data.url) {
@@ -254,13 +256,11 @@ window.higgsfieldPage = {
     };
 
     try {
-      const res = await fetch("/api/higgsfield/chat", {
+      const data = await apiFetch("/api/higgsfield/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      
+
       if (loadingDiv) loadingDiv.remove();
 
       if (data.session_id) {

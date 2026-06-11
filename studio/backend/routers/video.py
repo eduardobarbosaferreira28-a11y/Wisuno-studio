@@ -19,7 +19,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, user_id_of, is_admin
 from services.video_service import (
     STEP_LABELS,
     VIDEO_OUTPUT_ROOT,
@@ -54,7 +54,7 @@ async def upload_video(file: UploadFile = File(...), user: dict = Depends(get_cu
         shutil.copyfileobj(file.file, f)
 
     size_mb = dest_path.stat().st_size / (1024 * 1024)
-    job_id  = start_analysis(str(dest_path))
+    job_id  = start_analysis(str(dest_path), user_id=user_id_of(user))
 
     return {
         "job_id":    job_id,
@@ -118,7 +118,7 @@ async def upload_complete(
     shutil.rmtree(chunk_dir, ignore_errors=True)
     
     size_mb = dest_path.stat().st_size / (1024 * 1024)
-    job_id  = start_analysis(str(dest_path))
+    job_id  = start_analysis(str(dest_path), user_id=user_id_of(user))
 
     return {
         "job_id":    job_id,
@@ -135,6 +135,8 @@ async def job_status(job_id: str, user: dict = Depends(get_current_user)):
     """Poll analysis + render progress. Returns steps, proposed cuts, probe info."""
     job = get_job(job_id)
     if not job:
+        raise HTTPException(404, f"Job '{job_id}' not found.")
+    if job.get("user_id") != user_id_of(user) and not is_admin(user):
         raise HTTPException(404, f"Job '{job_id}' not found.")
 
     return {
@@ -166,6 +168,8 @@ async def approve_and_render(job_id: str, req: ApproveRequest, user: dict = Depe
     """Submit the approved cut list and kick off the full render pipeline."""
     job = get_job(job_id)
     if not job:
+        raise HTTPException(404, f"Job '{job_id}' not found.")
+    if job.get("user_id") != user_id_of(user) and not is_admin(user):
         raise HTTPException(404, f"Job '{job_id}' not found.")
     if job["status"] not in ("awaiting_approval", "done", "error", "rendering"):
         raise HTTPException(400, f"Job is not ready for approval (status: {job['status']})")
@@ -241,6 +245,8 @@ async def retry_step(job_id: str, req: RetryRequest, user: dict = Depends(get_cu
     """Retry a failed step in the video pipeline."""
     job = get_job(job_id)
     if not job:
+        raise HTTPException(404, f"Job '{job_id}' not found.")
+    if job.get("user_id") != user_id_of(user) and not is_admin(user):
         raise HTTPException(404, f"Job '{job_id}' not found.")
     if job["status"] != "error":
         raise HTTPException(400, "Can only retry jobs in 'error' status.")

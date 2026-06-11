@@ -3,11 +3,12 @@ import json
 from uuid import UUID
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from supabase import create_client, Client
 
 from services import gen_service
+from dependencies.auth import get_current_user, user_id_of, is_admin
 
 router = APIRouter(prefix="/api/higgsfield", tags=["higgsfield"])
 
@@ -28,21 +29,27 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage] # Full history including the new user message
 
 @router.post("/chat")
-async def handle_chat(req: ChatRequest):
+async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
     sb = get_supabase()
     session_id = req.session_id
+    uid = user_id_of(user)
 
     try:
-        # 1. Ensure Session exists
+        # 1. Ensure Session exists (and belongs to this user)
         if not session_id:
-            # Create a new session
+            # Create a new session owned by the current user
             first_user_msg = next((m.content for m in req.messages if m.role == "user"), "New Chat")
             title = first_user_msg[:50] + "..." if len(first_user_msg) > 50 else first_user_msg
-            res = sb.table("chat_sessions").insert({"title": title}).execute()
+            res = sb.table("chat_sessions").insert({"title": title, "user_id": uid}).execute()
             if not res.data:
                 raise HTTPException(status_code=500, detail="Failed to create session")
             session_id = res.data[0]["id"]
-        
+        else:
+            # Verify the existing session belongs to this user (admins bypass)
+            owner = sb.table("chat_sessions").select("user_id").eq("id", session_id).limit(1).execute()
+            if owner.data and owner.data[0].get("user_id") not in (uid, None) and not is_admin(user):
+                raise HTTPException(status_code=404, detail="Session not found")
+
         # 2. Get the latest user message to save to DB immediately
         latest_user_message = req.messages[-1]
         sb.table("chat_messages").insert({
@@ -50,6 +57,8 @@ async def handle_chat(req: ChatRequest):
             "role": latest_user_message.role,
             "content": latest_user_message.content
         }).execute()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -82,7 +91,7 @@ async def handle_chat(req: ChatRequest):
 
     started_video_jobs: list = []
     try:
-        result = await gen_service.chat(anthropic_msgs, system_prompt, session_id=session_id)
+        result = await gen_service.chat(anthropic_msgs, system_prompt, session_id=session_id, user_id=uid)
         assistant_reply = result["reply"]
         started_video_jobs = result.get("video_jobs", [])
     except Exception as e:
@@ -112,7 +121,7 @@ async def handle_chat(req: ChatRequest):
 
 
 @router.get("/video_status/{job_id}")
-def video_status(job_id: str):
+def video_status(job_id: str, user: dict = Depends(get_current_user)):
     """Poll the status of an async Veo video render. Persists the finished video to chat history once."""
     job = gen_service.get_video_job(job_id)
     if not job:
@@ -143,13 +152,20 @@ def video_status(job_id: str):
 
 
 @router.get("/sessions")
-def get_sessions():
+def get_sessions(user: dict = Depends(get_current_user)):
     sb = get_supabase()
-    res = sb.table("chat_sessions").select("*").order("updated_at", desc=True).execute()
+    query = sb.table("chat_sessions").select("*")
+    if not is_admin(user):
+        query = query.eq("user_id", user_id_of(user))
+    res = query.order("updated_at", desc=True).execute()
     return {"sessions": res.data}
 
 @router.get("/sessions/{session_id}/messages")
-def get_messages(session_id: str):
+def get_messages(session_id: str, user: dict = Depends(get_current_user)):
     sb = get_supabase()
+    # Verify the session belongs to this user (admins bypass).
+    owner = sb.table("chat_sessions").select("user_id").eq("id", session_id).limit(1).execute()
+    if owner.data and owner.data[0].get("user_id") not in (user_id_of(user), None) and not is_admin(user):
+        raise HTTPException(status_code=404, detail="Session not found")
     res = sb.table("chat_messages").select("*").eq("session_id", session_id).order("created_at", desc=False).execute()
     return {"messages": res.data}

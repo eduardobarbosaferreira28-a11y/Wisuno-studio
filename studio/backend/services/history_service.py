@@ -17,23 +17,25 @@ PROJECT_ROOT = BACKEND_DIR.parent.parent
 OUTPUT_DIR = PROJECT_ROOT / "output"
 LOG_FILE = OUTPUT_DIR / "studio_log.jsonl"
 
-def log_job(job_id: str, job_type: str, status: str, details: dict):
+def log_job(job_id: str, job_type: str, status: str, details: dict, user_id: str | None = None):
     """
     Append a job summary to studio_log.jsonl
-    job_type: 'video' or 'carousel'
+    job_type: 'video' | 'carousel' | 'gen_image' | 'gen_video'
     status: 'done' or 'error'
     details: Dict containing paths, duration, etc.
+    user_id: owning user's id (for per-user dashboard isolation)
     """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     entry = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "job_id": job_id,
         "job_type": job_type,
         "status": status,
         "details": details,
+        "user_id": user_id,
     }
-    
+
     if supabase:
         try:
             supabase.table("jobs").insert({
@@ -41,6 +43,7 @@ def log_job(job_id: str, job_type: str, status: str, details: dict):
                 "job_type": job_type,
                 "status": status,
                 "details": details,
+                "user_id": user_id,
             }).execute()
             # If inserting into Supabase succeeded, we still append to local log for backup
         except Exception as e:
@@ -49,13 +52,17 @@ def log_job(job_id: str, job_type: str, status: str, details: dict):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
 
-def get_history(limit: int = 100) -> list[dict]:
+def get_history(limit: int = 100, user_id: str | None = None, admin: bool = False) -> list[dict]:
     """
-    Read the latest jobs from Supabase or fallback to studio_log.jsonl
+    Read the latest jobs from Supabase or fallback to studio_log.jsonl.
+    Non-admins only see their own jobs (filtered by user_id); admins see everything.
     """
     if supabase:
         try:
-            res = supabase.table("jobs").select("*").order("created_at", desc=True).limit(limit).execute()
+            query = supabase.table("jobs").select("*")
+            if not admin:
+                query = query.eq("user_id", user_id)
+            res = query.order("created_at", desc=True).limit(limit).execute()
             print(f"DEBUG: Supabase returned {len(res.data)} rows")
             entries = []
             for row in res.data:
@@ -65,6 +72,7 @@ def get_history(limit: int = 100) -> list[dict]:
                     "job_type": row.get("job_type", ""),
                     "status": row.get("status", ""),
                     "details": row.get("details", {}),
+                    "user_id": row.get("user_id"),
                 })
             return entries
         except Exception as e:

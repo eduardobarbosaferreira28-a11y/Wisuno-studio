@@ -55,7 +55,7 @@ _jobs: dict[str, dict] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
 
 
-def _make_job(languages: list[str]) -> dict:
+def _make_job(languages: list[str], user_id: str | None = None) -> dict:
     return {
         "status": "pending",   # pending | running | done | error
         "steps": [{"label": lbl, "status": "pending"} for lbl in STEP_LABELS],
@@ -64,6 +64,7 @@ def _make_job(languages: list[str]) -> dict:
         "error": None,
         "output_dir": None,
         "files": {},           # {lang_code: {carousel, caption, ...}}
+        "user_id": user_id,    # owning user (for per-user isolation)
     }
 
 
@@ -91,9 +92,10 @@ def start_job(
     content_type: str,
     skip_images: bool,
     languages: list[str],
+    user_id: str | None = None,
 ) -> str:
     job_id = str(uuid.uuid4())
-    job = _make_job(languages)
+    job = _make_job(languages, user_id)
     _jobs[job_id] = job
     _executor.submit(_run, job_id, url, text, num_slides, content_type, skip_images, languages)
     return job_id
@@ -220,7 +222,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
                 cap_url_to_use = cap_public_url if cap_public_url else f"/api/carousel/download/{job_id}/{lc}/caption"
                 
                 file_links.append({"lang": lc, "url": url_to_use, "caption_url": cap_url_to_use})
-            log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links})
+            log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links}, user_id=job.get("user_id"))
         except Exception as e:
             print(f"[carousel_service] History log failed: {e}")
 
@@ -237,6 +239,6 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         # Log to history
         try:
             from services.history_service import log_job
-            log_job(job_id, "carousel", "error", {"topic": job.get("topic", "Carousel"), "error": str(exc)})
+            log_job(job_id, "carousel", "error", {"topic": job.get("topic", "Carousel"), "error": str(exc)}, user_id=job.get("user_id"))
         except Exception:
             pass

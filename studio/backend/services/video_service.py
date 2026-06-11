@@ -74,13 +74,14 @@ _jobs: dict[str, dict] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
 
 
-def _make_job(video_path: str) -> dict:
+def _make_job(video_path: str, user_id: str | None = None) -> dict:
     return {
         "status":        "pending",
         "steps":         [{"label": lbl, "status": "pending"} for lbl in STEP_LABELS],
         "current_step":  -1,
         "video_path":    video_path,
         "topic":         Path(video_path).stem,
+        "user_id":       user_id,   # owning user (for per-user isolation)
         "portrait_path": None,   # path after portrait crop
         "edit_dir":      None,
         "probe":         None,
@@ -112,9 +113,9 @@ def _step_error(job: dict, idx: int, msg: str):
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
-def start_analysis(video_path: str) -> str:
+def start_analysis(video_path: str, user_id: str | None = None) -> str:
     job_id = str(uuid.uuid4())
-    job = _make_job(video_path)
+    job = _make_job(video_path, user_id)
     _jobs[job_id] = job
     _executor.submit(_run_analysis, job_id, video_path)
     return job_id
@@ -556,7 +557,8 @@ def _run_render(
 
             log_job(
                 job_id, "video", "done",
-                {"topic": job.get("topic", "Video"), "file": url_to_use, "size_mb": size_mb, "metadata_url": meta_url_to_use}
+                {"topic": job.get("topic", "Video"), "file": url_to_use, "size_mb": size_mb, "metadata_url": meta_url_to_use},
+                user_id=job.get("user_id"),
             )
         except Exception as e:
             print(f"[video_service] History log failed: {e}")
@@ -570,7 +572,7 @@ def _run_render(
         
         # Log error history
         try:
-            log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc)})
+            log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc)}, user_id=job.get("user_id"))
         except Exception:
             pass
 
