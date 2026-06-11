@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from supabase import create_client, Client
 
-from services.higgsfield_service import chat_with_higgsfield
+from services import gen_service
 
 router = APIRouter(prefix="/api/higgsfield", tags=["higgsfield"])
 
@@ -58,7 +58,11 @@ async def handle_chat(req: ChatRequest):
     
     # 4. Call Higgsfield Service
     system_prompt = (
-        "You are the Wisuno Gen Studio AI. You have tools available to generate promotional banners, short promo videos, and manage Soul IDs using Higgsfield AI.\n\n"
+        "You are the Wisuno Gen Studio AI. You generate marketing visuals using Google's "
+        "image and video models via two tools:\n"
+        "- generate_image: Nano Banana Pro (Gemini 3). Static images, ready instantly.\n"
+        "- generate_video: Veo 3. ~8 second videos with audio; renders asynchronously over "
+        "2-4 minutes and appears in the chat automatically when ready.\n\n"
         "INTERVIEW MODE (PRE-GENERATION):\n"
         "If the user's request is vague or missing key details (Action/Subject, Visual Style/Lighting, Tone/Audience), DO NOT generate immediately. Instead, ask ONE clarifying question at a time to build the perfect prompt.\n"
         "When asking a question, you MUST provide exactly 3 suggested answers formatted using the following markdown syntax at the end of your response:\n"
@@ -68,23 +72,26 @@ async def handle_chat(req: ChatRequest):
         "SMART DEFAULTS (Do not ask the user for these unless they specify otherwise):\n"
         "- Image Requests: Default to 4:5 Instagram Post format.\n"
         "- Video Requests: Default to 9:16 Reels/TikTok format.\n"
-        "- Banner Requests: Default to standard web banner sizes (e.g. 16:9 landscape).\n\n"
+        "- Banner Requests: Default to 16:9 landscape.\n\n"
         "CRITICAL GENERATION INSTRUCTIONS:\n"
-        "1. ALWAYS return the URL to the generated asset in your final response.\n"
-        "2. Wisuno Brand Guidelines: Neon Orange #FF6B00, Obsidian Black #0A0A0A, Cloud Mist #FAFAFA, Urbanist/Inter fonts.\n"
-        "3. Disclaimer: All generations MUST include the disclaimer text: 'CFD trading carries a high level of risk and may not be suitable for all investors. This content is for educational purposes only and does not constitute financial or investment advice. Regulated by CMA, UAE. Trade responsibly.'\n"
-        "4. Disclaimer Placement: Place the disclaimer at the bottom of the asset (bottom: 180px, left: 180px, right: 180px), using a legible font (15px) and a subtle color (#888888)."
+        "1. For images: the tool returns a markdown image link — embed it verbatim in your final reply so it displays.\n"
+        "2. For videos: do NOT include any link or placeholder URL. Just tell the user the video is rendering; the app shows it automatically when done.\n"
+        "3. Wisuno Brand Guidelines: Neon Orange #FF6B00, Obsidian Black #0A0A0A, Cloud Mist #FAFAFA, Urbanist/Inter fonts. Weave these into your generation prompts.\n"
+        "4. Disclaimer: For promotional assets, include in the generation prompt that the asset should render a small, subtle disclaimer at the bottom: 'CFD trading carries a high level of risk and may not be suitable for all investors. This content is for educational purposes only and does not constitute financial or investment advice. Regulated by CMA, UAE. Trade responsibly.'"
     )
-    
+
+    started_video_jobs: list = []
     try:
-        assistant_reply = await chat_with_higgsfield(anthropic_msgs, system_prompt)
+        result = await gen_service.chat(anthropic_msgs, system_prompt, session_id=session_id)
+        assistant_reply = result["reply"]
+        started_video_jobs = result.get("video_jobs", [])
     except Exception as e:
         err_msg = str(e)
         if hasattr(e, 'exceptions'):
             sub_errs = ", ".join(repr(sub_e) for sub_e in e.exceptions)
             err_msg += f" | Sub-errors: {sub_errs}"
         assistant_reply = f"Error communicating with AI: {err_msg}"
-        
+
     # 5. Save assistant reply to DB
     try:
         sb.table("chat_messages").insert({
@@ -99,8 +106,41 @@ async def handle_chat(req: ChatRequest):
     
     return {
         "session_id": session_id,
-        "reply": assistant_reply
+        "reply": assistant_reply,
+        "video_jobs": started_video_jobs,
     }
+
+
+@router.get("/video_status/{job_id}")
+def video_status(job_id: str):
+    """Poll the status of an async Veo video render. Persists the finished video to chat history once."""
+    job = gen_service.get_video_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Unknown video job")
+
+    # When the video first completes, save it into the session history so it
+    # survives a chat reload. Guarded by `persisted` so we only insert once.
+    if job.get("status") == "done" and job.get("url") and not job.get("persisted"):
+        sid = job.get("session_id")
+        if sid:
+            try:
+                sb = get_supabase()
+                sb.table("chat_messages").insert({
+                    "session_id": sid,
+                    "role": "assistant",
+                    "content": f"![Generated video]({job['url']})",
+                }).execute()
+            except Exception as e:  # noqa: BLE001
+                print(f"[higgsfield] Failed to persist video message: {e}")
+        job["persisted"] = True
+
+    return {
+        "job_id": job_id,
+        "status": job.get("status"),
+        "url": job.get("url"),
+        "error": job.get("error"),
+    }
+
 
 @router.get("/sessions")
 def get_sessions():

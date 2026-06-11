@@ -170,6 +170,57 @@ window.higgsfieldPage = {
     this.sendMessage();
   },
 
+  // Poll an async Veo video render and swap in the <video> when it's ready.
+  pollVideoJob(jobId) {
+    const container = document.getElementById("hf-messages");
+    const card = document.createElement("div");
+    card.className = "hf-msg assistant";
+    card.style.alignSelf = "flex-start";
+    card.style.maxWidth = "80%";
+    card.style.background = "var(--bg-lighter)";
+    card.style.padding = "16px 20px";
+    card.style.borderRadius = "12px";
+    card.style.borderTopLeftRadius = "2px";
+    card.style.marginBottom = "10px";
+    card.innerHTML = `
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="spinner" style="width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--brand-primary);border-radius:50%;animation:spin 1s linear infinite;"></span>
+        <span>Rendering your video with Veo 3… this takes 2-4 minutes.</span>
+      </div>`;
+    container.appendChild(card);
+    container.scrollTop = container.scrollHeight;
+
+    const started = Date.now();
+    const TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes
+
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/higgsfield/video_status/${jobId}`);
+        const data = await res.json();
+
+        if (data.status === "done" && data.url) {
+          card.innerHTML = `<video src="${data.url}" controls autoplay loop style="max-width:100%; border-radius:8px;"></video>`;
+          container.scrollTop = container.scrollHeight;
+          return; // stop polling
+        }
+        if (data.status === "error") {
+          card.innerHTML = `<span style="color:#EF4444;">Video render failed: ${data.error || "unknown error"}</span>`;
+          return;
+        }
+      } catch (e) {
+        console.error("video_status poll failed", e);
+      }
+
+      if (Date.now() - started > TIMEOUT_MS) {
+        card.innerHTML = `<span style="color:#EF4444;">Video render timed out. Please try again.</span>`;
+        return;
+      }
+      setTimeout(tick, 8000);
+    };
+
+    setTimeout(tick, 8000);
+  },
+
   async sendMessage() {
     const input = document.getElementById("hf-input");
     const text = input.value.trim();
@@ -221,6 +272,11 @@ window.higgsfieldPage = {
         this.renderMessages();
       } else {
         throw new Error(data.detail || "Empty reply from backend");
+      }
+
+      // Kick off polling for any async video render jobs started this turn.
+      if (Array.isArray(data.video_jobs) && data.video_jobs.length) {
+        data.video_jobs.forEach(jobId => this.pollVideoJob(jobId));
       }
 
       this.loadSessions(); // refresh title if it was new

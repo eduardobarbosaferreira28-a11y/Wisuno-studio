@@ -5,5 +5,5 @@ python-dotenv>=1.0.0
 supabase>=2.4.0
 elevenlabs>=1.0.0
 
-mcp
 anthropic
+google-genai>=1.70.0
