@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 from anthropic import AsyncAnthropic
 
 from mcp import ClientSession
-from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamablehttp_client
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,10 @@ async def chat_with_higgsfield(messages: List[Dict[str, Any]], system_prompt: st
     anthropic = AsyncAnthropic(api_key=anthropic_api_key)
 
     try:
-        async with sse_client(
+        async with streamablehttp_client(
             url="https://mcp.higgsfield.ai/mcp",
             headers={"Authorization": f"Bearer {higgsfield_api_key}"}
-        ) as (read, write):
+        ) as (read, write, _get_session_id):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 
@@ -53,7 +53,7 @@ async def chat_with_higgsfield(messages: List[Dict[str, Any]], system_prompt: st
                 
                 while True:
                     response = await anthropic.messages.create(
-                        model="claude-3-5-sonnet-latest", # or 3.7
+                        model="claude-sonnet-4-6",
                         max_tokens=4096,
                         system=system_prompt,
                         messages=current_messages,

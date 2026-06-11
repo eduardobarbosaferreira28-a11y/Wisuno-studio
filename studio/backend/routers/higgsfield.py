@@ -79,7 +79,11 @@ async def handle_chat(req: ChatRequest):
     try:
         assistant_reply = await chat_with_higgsfield(anthropic_msgs, system_prompt)
     except Exception as e:
-        assistant_reply = f"Error communicating with AI: {str(e)}"
+        err_msg = str(e)
+        if hasattr(e, 'exceptions'):
+            sub_errs = ", ".join(repr(sub_e) for sub_e in e.exceptions)
+            err_msg += f" | Sub-errors: {sub_errs}"
+        assistant_reply = f"Error communicating with AI: {err_msg}"
         
     # 5. Save assistant reply to DB
     try:
