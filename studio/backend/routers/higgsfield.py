@@ -77,7 +77,7 @@ async def handle_chat(req: ChatRequest):
         "1. For images: the tool returns a markdown image link — embed it verbatim in your final reply so it displays.\n"
         "2. For videos: do NOT include any link or placeholder URL. Just tell the user the video is rendering; the app shows it automatically when done.\n"
         "3. Wisuno Brand Guidelines: Neon Orange #FF6B00, Obsidian Black #0A0A0A, Cloud Mist #FAFAFA, Urbanist/Inter fonts. Weave these into your generation prompts.\n"
-        "4. Disclaimer: For promotional assets, include in the generation prompt that the asset should render a small, subtle disclaimer at the bottom: 'CFD trading carries a high level of risk and may not be suitable for all investors. This content is for educational purposes only and does not constitute financial or investment advice. Regulated by CMA, UAE. Trade responsibly.'"
+        "4. Disclaimer: The required CFD risk disclaimer is added AUTOMATICALLY to the bottom of every generated image and video by the system. Do NOT ask the model to render any disclaimer text in your prompts, and do NOT include disclaimer text yourself — it is handled for you. Keep the visual area near the bottom edge relatively clean so the disclaimer remains readable."
     )
 
     started_video_jobs: list = []

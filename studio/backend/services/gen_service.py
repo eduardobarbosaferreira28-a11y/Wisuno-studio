@@ -27,6 +27,7 @@ from google import genai
 from google.genai import types
 
 from services.supabase_client import upload_to_storage
+from services.disclaimer import overlay_disclaimer_on_image, overlay_disclaimer_on_video
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +191,12 @@ def _generate_image_blocking(prompt: str, aspect_ratio: str) -> str:
 
 
 def _store_image(image_bytes: bytes) -> str:
+    # Burn the regulatory disclaimer onto every generated image.
+    try:
+        image_bytes = overlay_disclaimer_on_image(image_bytes)
+    except Exception:  # noqa: BLE001
+        logger.exception("Disclaimer overlay on image failed; storing image without it")
+
     asset_id = uuid.uuid4().hex[:12]
     tmp = Path(tempfile.gettempdir()) / f"gen_img_{asset_id}.png"
     tmp.write_bytes(image_bytes)
@@ -236,10 +243,22 @@ def _generate_video_blocking(prompt: str, aspect_ratio: str, job_id: str) -> str
     client.files.download(file=video)
     tmp = Path(tempfile.gettempdir()) / f"gen_vid_{job_id}.mp4"
     video.save(str(tmp))
+
+    # Burn the regulatory disclaimer into the rendered video. If the overlay
+    # fails, fall back to the original render rather than discarding it.
+    tmp_disc = Path(tempfile.gettempdir()) / f"gen_vid_{job_id}_disc.mp4"
+    upload_src = tmp
     try:
-        url = upload_to_storage(ASSET_BUCKET, f"gen/videos/{job_id}.mp4", str(tmp), "video/mp4")
+        overlay_disclaimer_on_video(tmp, tmp_disc)
+        upload_src = tmp_disc
+    except Exception:  # noqa: BLE001
+        logger.exception("Disclaimer overlay on video failed; uploading video without it")
+
+    try:
+        url = upload_to_storage(ASSET_BUCKET, f"gen/videos/{job_id}.mp4", str(upload_src), "video/mp4")
     finally:
         tmp.unlink(missing_ok=True)
+        tmp_disc.unlink(missing_ok=True)
     if not url:
         raise RuntimeError("Video was rendered but could not be uploaded to storage.")
     return url
