@@ -5,6 +5,12 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONUTF8=1
 
+# Make pip resilient to slow/flaky PyPI mirrors (Railway builders occasionally
+# time out fetching package metadata — the default 15s read timeout then cascades
+# into a bogus "ResolutionImpossible" during backtracking).
+ENV PIP_DEFAULT_TIMEOUT=120
+ENV PIP_RETRIES=8
+
 # Memory optimization for 2GB Render Standard plan
 ENV MALLOC_ARENA_MAX=2
 ENV PLAYWRIGHT_CHROMIUM_DISABLE_GPU=1
