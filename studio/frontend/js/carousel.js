@@ -9,6 +9,7 @@ const LANGUAGES = [
   { code: 'zh-CN', name: 'Simplified Chinese',  flag: '🇨🇳', locked: false },
   { code: 'th',    name: 'Thai',                flag: '🇹🇭', locked: false },
   { code: 'sw',    name: 'Kiswahili',           flag: '🇰🇪', locked: false },
+  { code: 'pt-BR', name: 'Portuguese (Brazil)', flag: '🇧🇷', locked: false },
 ];
 
 const CONTENT_TYPES = [
@@ -85,7 +86,7 @@ const carouselPage = {
       <div class="page-header">
         <div class="header-tag">Tool</div>
         <h1>Carousel Studio</h1>
-        <p>Turn any news article or text into a branded Instagram carousel in up to 5 languages.</p>
+        <p>Turn any news article or text into a branded Instagram carousel in up to 6 languages.</p>
       </div>
 
       <!-- ── Input card ────────────────────────────────────── -->

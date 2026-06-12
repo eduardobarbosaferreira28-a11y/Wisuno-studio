@@ -4,7 +4,7 @@ studio/backend/services/carousel_service.py
 Carousel pipeline service — wraps the existing html_carousel workflow
 with per-step progress tracking and multi-language support.
 
-Supports 5 languages: en, zh-TW, zh-CN, th, sw (Kiswahili)
+Supports 6 languages: en, zh-TW, zh-CN, th, sw (Kiswahili), pt-BR (Brazilian Portuguese)
 """
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ ALL_LANGUAGES = {
     "zh-CN": "Simplified Chinese (简体中文)",
     "th":    "Thai (ภาษาไทย)",
     "sw":    "Kiswahili",
+    "pt-BR": "Brazilian Portuguese (Português do Brasil)",
 }
 
 LANGUAGE_FLAGS = {
@@ -40,6 +41,7 @@ LANGUAGE_FLAGS = {
     "zh-CN": "🇨🇳",
     "th":    "🇹🇭",
     "sw":    "🇰🇪",
+    "pt-BR": "🇧🇷",
 }
 
 STEP_LABELS = [

@@ -72,6 +72,15 @@ _FONT_CONFIGS: dict[str, dict] = {
         "heading": "'Sarabun'",
         "body":    "'Sarabun'",
     },
+    # Brazilian Portuguese is Latin-script — reuse the brand fonts (Urbanist + Inter).
+    "pt-BR": {
+        "google_fonts": (
+            "https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700;900"
+            "&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
+        ),
+        "heading": "'Urbanist'",
+        "body":    "'Inter'",
+    },
 }
 
 # ── CTA slide copy per language ──────────────────────────────────────────────
@@ -80,6 +89,7 @@ _CTA_CONTENT: dict[str, tuple[str, str]] = {
     "zh-TW": ("追蹤更多內容",      "每日市場解析，讓您掌握每一個宏觀動態。"),
     "zh-CN": ("关注获取更多",      "每日市场解析，让您掌握每一个宏观动态。"),
     "th":    ("ติดตามเพิ่มเติม",  "วิเคราะห์ตลาดรายวัน ไม่พลาดทุกความเคลื่อนไหวเศรษฐกิจมหภาค"),
+    "pt-BR": ("SIGA PARA MAIS",  "Análises de mercado diárias para você nunca perder um movimento macro."),
 }
 
 _CTA_CONTENT_EDUCATIONAL: dict[str, tuple[str, str]] = {
@@ -87,6 +97,7 @@ _CTA_CONTENT_EDUCATIONAL: dict[str, tuple[str, str]] = {
     "zh-TW": ("追蹤更多內容",      "每週全新金融概念，讓您持續學習、不斷進步。"),
     "zh-CN": ("关注获取更多",      "每周全新金融概念，让您持续学习、不断进步。"),
     "th":    ("ติดตามเพิ่มเติม",  "แนวคิดการเงินใหม่ทุกสัปดาห์ เพื่อให้คุณไม่หยุดเรียนรู้"),
+    "pt-BR": ("SIGA PARA MAIS",  "Novos conceitos financeiros toda semana — para você nunca parar de aprender."),
 }
 
 # ── UI chrome strings per language ───────────────────────────────────────────
@@ -127,6 +138,18 @@ _UI_STRINGS: dict[str, dict] = {
         "done":         "下载全部幻灯片 (JPG)",
         "error":        "导出失败，请重试",
     },
+    "pt-BR": {
+        "html_lang":    "pt-BR",
+        "slide_label":  "Slide",
+        "prev_slide":   "Slide anterior",
+        "next_slide":   "Próximo slide",
+        "download_btn": "Baixar todos os slides (JPG)",
+        "loading":      "Carregando...",
+        "rendering":    "Renderizando {i} / {n}...",
+        "packaging":    "Compactando ZIP...",
+        "done":         "Baixar todos os slides (JPG)",
+        "error":        "Falha na exportação — tente novamente",
+    },
     "th": {
         "html_lang":    "th",
         "slide_label":  "สไลด์",
@@ -162,6 +185,11 @@ _DISCLAIMER_TEXT: dict[str, str] = {
         "การซื้อขาย CFD มีความเสี่ยงสูงและอาจไม่เหมาะสำหรับนักลงทุนทุกราย "
         "เนื้อหานี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น ไม่ถือเป็นคำแนะนำทางการเงินหรือการลงทุน "
         "Wisuno Capital ได้รับการกำกับดูแลโดย CMA, CySEC, FSA และ FSC โปรดซื้อขายด้วยความรับผิดชอบ"
+    ),
+    "pt-BR": (
+        "O trading de CFDs envolve um alto nível de risco e pode não ser adequado para todos os investidores. "
+        "Este conteúdo tem caráter exclusivamente educacional e não constitui aconselhamento financeiro ou de investimento. "
+        "A Wisuno Capital é regulamentada pela CMA, CySEC, FSA e FSC. Negocie com responsabilidade."
     ),
 }
 

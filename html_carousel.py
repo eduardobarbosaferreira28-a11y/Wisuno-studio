@@ -72,6 +72,7 @@ LANGUAGES: dict[str, str] = {
     "zh-CN": "Simplified Chinese (简体中文)",
     "th":    "Thai (ภาษาไทย)",
     "sw":    "Kiswahili",
+    "pt-BR": "Brazilian Portuguese (Português do Brasil)",
 }
 
 
