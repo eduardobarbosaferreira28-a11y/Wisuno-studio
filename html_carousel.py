@@ -86,7 +86,12 @@ def _slugify(text: str, max_len: int = 48) -> str:
 
 
 def _load_prompt(num_slides: int, content_type: str = "market_insight") -> str:
-    fname = "educational_prompt.txt" if content_type == "educational" else "script_prompt.txt"
+    if content_type == "educational":
+        fname = "educational_prompt.txt"
+    elif content_type == "promotional":
+        fname = "promotional_prompt.txt"
+    else:
+        fname = "script_prompt.txt"
     template = (PROMPTS_DIR / fname).read_text(encoding="utf-8")
     return template.replace("{min_slides}", str(MIN_SLIDES)) \
                    .replace("{max_slides}", str(MAX_SLIDES)) \
@@ -191,17 +196,21 @@ _TRANSLATE_PROMPT = """\
 Translate the following Instagram financial carousel script from English to {lang_name}.
 
 TRANSLATION RULES:
-- Translate ONLY these text fields:
-    title, caption, headline, subheadline, section_headline, takeaway_line,
-    analysis_paragraphs (array of strings), quote_text, quote_attribution,
-    rhetorical_question, chart_caption, data_points[].label, asset_tag, and hashtags
+- Translate EVERY human-readable text value in the JSON into {lang_name} — every headline, label,
+  sentence, paragraph, quote, term, definition, list item, table cell, caption, and eyebrow. Do not
+  leave any visible text in English. This includes (non-exhaustively): title, caption, headline,
+  subheadline, section_headline, takeaway_line, analysis_paragraphs[], quote_text, quote_attribution,
+  rhetorical_question, chart_caption, data_points[].label, asset_tag, term, definition, why_it_matters,
+  steps[], col_a_label, col_b_label, rows[].col_a, rows[].col_b, scenario, number_label, narrative,
+  outcome, pillars[].title, pillars[].detail, feature_name, feature_detail, benefits[], and any other
+  text field present.
+- Keep these keys UNCHANGED (return their values byte-for-byte, do NOT translate):
+    slide_number, type, direction, background_image_description, chart_type, chart_asset,
+    content_type, data_points[].value, and featured_number (it is a numeric anchor such as "10:1" or "$1,000").
 - For hashtags: translate the meaning of each hashtag into the target language, keeping them as single lowercase words with no spaces (e.g. "inflation" → "通货膨胀" or "เงินเฟ้อ"). Always keep "wisuno" unchanged.
-- Keep these fields UNCHANGED (do not translate):
-    slide_number, type, direction, background_image_description,
-    chart_type, chart_asset, data_points[].value
-- Keep financial abbreviations in English: CPI, Fed, GDP, USD, EUR, CFD, YoY, etc.
-- Maintain professional financial journalism tone
-- EXTREMELY IMPORTANT: Return ONLY valid JSON with the exact same structure. No markdown, no conversational text. You MUST properly escape any double quotes inside your translated text strings as \\".
+- Keep financial abbreviations in English: CPI, Fed, GDP, USD, EUR, CFD, YoY, etc. Keep "wisuno" / "@wisuno" unchanged.
+- Maintain a professional financial tone.
+- EXTREMELY IMPORTANT: Return ONLY valid JSON with the exact same structure and keys. No markdown, no conversational text. You MUST properly escape any double quotes inside your translated text strings as \\".
 
 SCRIPT:
 {script_json}"""

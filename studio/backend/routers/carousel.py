@@ -55,7 +55,7 @@ async def run_carousel(req: RunRequest, user: dict = Depends(get_current_user)):
         raise HTTPException(400, "Provide either 'url' or 'text'.")
 
     content_type = req.content_type if req.content_type in (
-        "market_insight", "market_update", "educational"
+        "market_insight", "market_update", "educational", "promotional"
     ) else "market_insight"
 
     languages = req.validate_languages()

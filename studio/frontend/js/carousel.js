@@ -14,6 +14,7 @@ const LANGUAGES = [
 
 const CONTENT_TYPES = [
   { value: 'market_insight', label: 'Market Insight'  },
+  { value: 'promotional',    label: 'Promotional'     },
   { value: 'market_update',  label: 'Market Update'   },
   { value: 'educational',    label: 'Educational'     },
 ];

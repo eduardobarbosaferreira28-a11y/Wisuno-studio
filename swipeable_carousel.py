@@ -100,6 +100,14 @@ _CTA_CONTENT_EDUCATIONAL: dict[str, tuple[str, str]] = {
     "pt-BR": ("SIGA PARA MAIS",  "Novos conceitos financeiros toda semana — para você nunca parar de aprender."),
 }
 
+_CTA_CONTENT_PROMOTIONAL: dict[str, tuple[str, str]] = {
+    "en":    ("FOLLOW FOR MORE",  "Join a community trading smarter with Wisuno — clear markets, every day."),
+    "zh-TW": ("追蹤更多內容",      "加入 Wisuno 社群，與更聰明的交易者同行——每日看懂市場。"),
+    "zh-CN": ("关注获取更多",      "加入 Wisuno 社群，与更聪明的交易者同行——每日看懂市场。"),
+    "th":    ("ติดตามเพิ่มเติม",  "ร่วมเป็นส่วนหนึ่งของชุมชน Wisuno เทรดอย่างชาญฉลาด เข้าใจตลาดทุกวัน"),
+    "pt-BR": ("SIGA PARA MAIS",  "Junte-se a uma comunidade que opera de forma mais inteligente com a Wisuno — mercados claros, todos os dias."),
+}
+
 # ── UI chrome strings per language ───────────────────────────────────────────
 _UI_STRINGS: dict[str, dict] = {
     "en": {
@@ -163,6 +171,16 @@ _UI_STRINGS: dict[str, dict] = {
         "error":        "ส่งออกล้มเหลว \u2014 ลองอีกครั้ง",
     },
 }
+
+# ── Fixed on-slide labels per language (not part of the script JSON) ──────────
+_SLIDE_LABELS: dict[str, dict[str, str]] = {
+    "en":    {"why_it_matters": "WHY IT MATTERS"},
+    "zh-TW": {"why_it_matters": "為什麼重要"},
+    "zh-CN": {"why_it_matters": "为什么重要"},
+    "th":    {"why_it_matters": "ทำไมจึงสำคัญ"},
+    "pt-BR": {"why_it_matters": "POR QUE IMPORTA"},
+}
+
 
 # ── Disclaimer per language ───────────────────────────────────────────────────
 _DISCLAIMER_TEXT: dict[str, str] = {
@@ -577,6 +595,8 @@ def _render_cta_slide(slide: dict | None = None, language: str = "en",
                       content_type: str = "market_insight", light: bool = False) -> str:
     if content_type == "educational":
         cta_map = _CTA_CONTENT_EDUCATIONAL
+    elif content_type == "promotional":
+        cta_map = _CTA_CONTENT_PROMOTIONAL
     else:
         cta_map = _CTA_CONTENT
     headline, body = cta_map.get(language, cta_map["en"])
@@ -626,11 +646,13 @@ def _render_cta_slide(slide: dict | None = None, language: str = "en",
 
 # ── Educational slide renderers ───────────────────────────────────────────────
 
-def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False) -> str:
+def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "",
+                          light: bool = False, language: str = "en") -> str:
     tag          = _e(slide.get("asset_tag", ""))
     term         = _e(slide.get("term", ""))
     definition   = _e(slide.get("definition", ""))
     why_matters  = _e(slide.get("why_it_matters", ""))
+    why_label    = _SLIDE_LABELS.get(language, _SLIDE_LABELS["en"])["why_it_matters"]
 
     bg        = _CLOUD_MIST if light else _BG
     logo_uri  = _dark_logo() if light else _logo()
@@ -672,7 +694,7 @@ def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: s
     <div style="flex-shrink:0;">
       <span style="font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
                    color:#FF6B00;letter-spacing:3px;text-transform:uppercase;
-                   display:block;margin-bottom:10px;">WHY IT MATTERS</span>
+                   display:block;margin-bottom:10px;">{why_label}</span>
       <p style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;
                 color:{secondary};line-height:1.6;">{why_matters}</p>
     </div>
@@ -871,6 +893,137 @@ def _render_example_slide(slide: dict, img_uri: str | None = None, disclaimer: s
 </div>"""
 
 
+# ── Promotional slide renderers (always dark brand theme) ─────────────────────
+
+def _render_value_prop_slide(slide: dict, disclaimer: str = "") -> str:
+    """Promo: eyebrow + headline + three value pillars (title / detail)."""
+    tag      = _e(slide.get("asset_tag", ""))
+    eyebrow  = _e(slide.get("section_headline", ""))
+    headline = _e(slide.get("headline", ""))
+    pillars  = slide.get("pillars", []) or []
+
+    rows = ""
+    for i, p in enumerate(pillars[:3]):
+        title  = _e(p.get("title", "") if isinstance(p, dict) else str(p))
+        detail = _e(p.get("detail", "") if isinstance(p, dict) else "")
+        border = "border-top:1px solid rgba(255,255,255,0.08);" if i > 0 else ""
+        rows += f"""
+    <div style="display:flex;gap:24px;align-items:flex-start;padding:22px 0;{border}flex-shrink:0;">
+      <span style="font-family:'Urbanist',sans-serif;font-size:22px;font-weight:900;
+                   color:#FF6B00;line-height:1;min-width:36px;">{str(i + 1).zfill(2)}</span>
+      <div>
+        <h3 style="font-family:'Urbanist',sans-serif;font-size:22px;font-weight:700;
+                   color:{_WHITE};line-height:1.15;margin-bottom:6px;">{title}</h3>
+        <p style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400;
+                  color:{_GRAY};line-height:1.55;">{detail}</p>
+      </div>
+    </div>"""
+
+    eyebrow_html = ""
+    if eyebrow:
+        eyebrow_html = f"""<span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+                 color:#FF6B00;letter-spacing:3px;text-transform:uppercase;
+                 display:block;margin-bottom:14px;flex-shrink:0;">{eyebrow}</span>"""
+
+    return f"""
+<div class="slide-inner" style="background:{_BG};">
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;
+              background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:180px;left:180px;z-index:20;">
+    <span class="asset-tag">{tag}</span>
+  </div>
+  <img class="logo" src="{_logo()}" alt="Wisuno">
+  <div style="position:absolute;top:260px;left:180px;right:180px;bottom:340px;
+              display:flex;flex-direction:column;justify-content:center;">
+    {eyebrow_html}
+    <h2 style="font-family:'Urbanist',sans-serif;font-size:42px;font-weight:900;
+               color:{_WHITE};line-height:1.08;text-transform:uppercase;letter-spacing:1px;
+               margin-bottom:18px;flex-shrink:0;">{headline}</h2>
+    <div class="o-line" style="margin-bottom:8px;flex-shrink:0;"></div>
+    <div style="flex-shrink:0;">{rows}</div>
+  </div>
+  <div class="disclaimer" style="color:{_DIM};">{_e(disclaimer)}</div>
+</div>"""
+
+
+def _render_benefits_slide(slide: dict, disclaimer: str = "") -> str:
+    """Promo: headline + a list of benefits with orange check markers."""
+    tag      = _e(slide.get("asset_tag", ""))
+    headline = _e(slide.get("headline", ""))
+    benefits = slide.get("benefits", []) or []
+    fs       = "18px" if len(benefits) <= 3 else "16px"
+
+    rows = ""
+    for b in benefits[:5]:
+        text = _e(b.get("text", b) if isinstance(b, dict) else b)
+        rows += f"""
+    <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 0;
+                border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
+      <span style="color:#FF6B00;font-size:20px;font-weight:900;line-height:1.4;flex-shrink:0;">&#10003;</span>
+      <p style="font-family:'Inter',sans-serif;font-size:{fs};font-weight:400;
+                color:{_WHITE};line-height:1.5;flex:1;">{text}</p>
+    </div>"""
+
+    return f"""
+<div class="slide-inner" style="background:{_BG};">
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;
+              background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:180px;left:180px;z-index:20;">
+    <span class="asset-tag">{tag}</span>
+  </div>
+  <img class="logo" src="{_logo()}" alt="Wisuno">
+  <div style="position:absolute;top:260px;left:180px;right:180px;bottom:340px;
+              display:flex;flex-direction:column;justify-content:center;">
+    <h2 style="font-family:'Urbanist',sans-serif;font-size:38px;font-weight:900;
+               color:{_WHITE};line-height:1.1;text-transform:uppercase;letter-spacing:1px;
+               margin-bottom:24px;flex-shrink:0;">{headline}</h2>
+    <div class="o-line" style="margin-bottom:8px;flex-shrink:0;"></div>
+    <div style="flex-shrink:0;">{rows}</div>
+  </div>
+  <div class="disclaimer" style="color:{_DIM};">{_e(disclaimer)}</div>
+</div>"""
+
+
+def _render_feature_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "") -> str:
+    """Promo: single feature spotlight (name + detail) with optional hero image."""
+    tag      = _e(slide.get("asset_tag", ""))
+    name     = _e(slide.get("feature_name", slide.get("headline", "")))
+    detail   = _e(slide.get("feature_detail", ""))
+
+    img_panel = ""
+    if img_uri:
+        img_panel = f"""
+    <div style="width:100%;flex:1;min-height:0;border-radius:6px;overflow:hidden;
+                margin-top:32px;position:relative;">
+      <img src="{img_uri}" style="width:100%;height:100%;object-fit:cover;
+           opacity:0.9;display:block;">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:35%;
+                  background:linear-gradient(to top,rgba(10,10,10,0.55) 0%,transparent 100%);"></div>
+    </div>"""
+    justify = "" if img_uri else "justify-content:center;"
+
+    return f"""
+<div class="slide-inner" style="background:{_BG};">
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;
+              background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:180px;left:180px;z-index:20;">
+    <span class="asset-tag">{tag}</span>
+  </div>
+  <img class="logo" src="{_logo()}" alt="Wisuno">
+  <div style="position:absolute;top:290px;left:180px;right:180px;bottom:340px;
+              display:flex;flex-direction:column;{justify}gap:0;">
+    <div class="o-line" style="margin-bottom:20px;flex-shrink:0;"></div>
+    <h2 style="font-family:'Urbanist',sans-serif;font-size:46px;font-weight:900;
+               color:#FF6B00;line-height:1.05;text-transform:uppercase;letter-spacing:1px;
+               margin-bottom:20px;flex-shrink:0;">{name}</h2>
+    <p style="font-family:'Inter',sans-serif;font-size:19px;font-weight:400;
+              color:{_GRAY};line-height:1.6;flex-shrink:0;">{detail}</p>
+    {img_panel}
+  </div>
+  <div class="disclaimer" style="color:{_DIM};">{_e(disclaimer)}</div>
+</div>"""
+
+
 # ── Dispatch ─────────────────────────────────────────────────────────────────
 
 def _render_slide(
@@ -901,13 +1054,20 @@ def _render_slide(
     elif stype == "cta_slide":
         return _render_cta_slide(slide, language=language, content_type=content_type, light=light)
     elif stype == "concept_slide":
-        return _render_concept_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light)
+        return _render_concept_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light, language=language)
     elif stype == "steps_slide":
         return _render_steps_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light)
     elif stype == "comparison_slide":
         return _render_comparison_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light)
     elif stype == "example_slide":
         return _render_example_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light)
+    # Promotional slide types — always rendered on the dark brand theme (no light variant).
+    elif stype == "value_prop_slide":
+        return _render_value_prop_slide(slide, disclaimer=disc)
+    elif stype == "benefits_slide":
+        return _render_benefits_slide(slide, disclaimer=disc)
+    elif stype == "feature_slide":
+        return _render_feature_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc)
     return None
 
 
