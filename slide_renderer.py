@@ -6,7 +6,7 @@ Each public function returns a complete, self-contained HTML string at 1080×135
 
 Brand tokens
   Background  #0A0A0A
-  Orange      #FF6B00
+  Orange      #FF6700
   White       #FFFFFF
   Secondary   #CCCCCC
   Disclaimer  #888888
@@ -75,11 +75,11 @@ body {
   font-family: 'Urbanist', sans-serif;
   font-size: 13px;
   font-weight: 700;
-  color: #FF6B00;
+  color: #FF6700;
   letter-spacing: 3px;
   text-transform: uppercase;
   padding: 7px 16px;
-  border: 1.5px solid #FF6B00;
+  border: 1.5px solid #FF6700;
   border-radius: 3px;
 }
 
@@ -95,7 +95,7 @@ body {
   line-height: 1.55;
 }
 
-.o-line { width: 56px; height: 3px; background: #FF6B00; border-radius: 2px; }
+.o-line { width: 56px; height: 3px; background: #FF6700; border-radius: 2px; }
 """
 
 
@@ -185,7 +185,7 @@ def render_cover(slide: dict, bg_data_uri: str | None = None) -> str:
 # DATA SLIDE
 # ─────────────────────────────────────────────────────────────────────────────
 _DIR_ARROW = {"UP": "↑", "DOWN": "↓", "FLAT": "→"}
-_DIR_COLOR = {"UP": "#FF6B00", "DOWN": "#EF4444", "FLAT": "#888888"}
+_DIR_COLOR = {"UP": "#FF6700", "DOWN": "#EF4444", "FLAT": "#888888"}
 
 
 def render_data_slide(slide: dict) -> str:
@@ -246,7 +246,7 @@ def render_data_slide(slide: dict) -> str:
   <img class="logo" src="{_logo()}" alt="Wisuno">
 
   <!-- Orange top accent bar -->
-  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6700;z-index:20;"></div>
 
   <!-- Main content -->
   <div style="position:absolute;top:148px;left:56px;right:56px;bottom:110px;display:flex;flex-direction:column;">
@@ -268,8 +268,8 @@ def render_data_slide(slide: dict) -> str:
     <div style="
       margin-top:32px;
       padding:20px 24px;
-      border-left:3px solid #FF6B00;
-      background:rgba(255,107,0,0.06);
+      border-left:3px solid #FF6700;
+      background:rgba(255,103,0,0.06);
     ">
       <p style="
         font-family:'Inter',sans-serif;
@@ -328,7 +328,7 @@ def render_analysis_slide(slide: dict, slide_num: int = 0) -> str:
       font-family:'Urbanist',sans-serif;
       font-size:72px;
       font-weight:900;
-      color:rgba(255,107,0,0.08);
+      color:rgba(255,103,0,0.08);
       line-height:1;
     ">{label}</span>
   </div>
@@ -340,7 +340,7 @@ def render_analysis_slide(slide: dict, slide_num: int = 0) -> str:
     left:56px;
     width:4px;
     bottom:110px;
-    background:linear-gradient(to bottom,#FF6B00 0%,rgba(255,107,0,0) 100%);
+    background:linear-gradient(to bottom,#FF6700 0%,rgba(255,103,0,0) 100%);
     border-radius:4px;
     z-index:10;
   "></div>
@@ -397,7 +397,7 @@ def render_quote_slide(slide: dict) -> str:
     font-family:'Urbanist',sans-serif;
     font-size:200px;
     font-weight:900;
-    color:rgba(255,107,0,0.12);
+    color:rgba(255,103,0,0.12);
     line-height:1;
     z-index:1;
     user-select:none;
@@ -424,12 +424,12 @@ def render_quote_slide(slide: dict) -> str:
     ">{quote}</blockquote>
 
     <div style="display:flex;align-items:center;gap:16px;margin-top:36px;">
-      <div style="width:40px;height:2px;background:#FF6B00;border-radius:1px;"></div>
+      <div style="width:40px;height:2px;background:#FF6700;border-radius:1px;"></div>
       <span style="
         font-family:'Inter',sans-serif;
         font-size:14px;
         font-weight:600;
-        color:#FF6B00;
+        color:#FF6700;
         letter-spacing:1px;
         text-transform:uppercase;
       ">{attribution}</span>
@@ -473,9 +473,9 @@ def render_chart_slide(slide: dict, chart_data_uri: str | None = None) -> str:
         chart_content = f"""\
     <div style="
       width:100%;flex:1;
-      border:1px solid rgba(255,107,0,0.2);
+      border:1px solid rgba(255,103,0,0.2);
       border-radius:4px;
-      background:rgba(255,107,0,0.03);
+      background:rgba(255,103,0,0.03);
       display:flex;flex-direction:column;
       align-items:center;justify-content:center;
       position:relative;overflow:hidden;
@@ -484,8 +484,8 @@ def render_chart_slide(slide: dict, chart_data_uri: str | None = None) -> str:
       <svg viewBox="0 0 900 500" style="width:90%;height:auto;opacity:0.6;">
         <defs>
           <linearGradient id="og" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#FF6B00" stop-opacity="0.3"/>
-            <stop offset="100%" stop-color="#FF6B00" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#FF6700" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#FF6700" stop-opacity="0"/>
           </linearGradient>
         </defs>
         <!-- grid lines -->
@@ -498,7 +498,7 @@ def render_chart_slide(slide: dict, chart_data_uri: str | None = None) -> str:
               fill="url(#og)"/>
         <!-- orange line -->
         <path d="M0,400 C100,380 150,320 220,260 S340,160 420,130 S580,90 660,110 S800,150 900,80"
-              fill="none" stroke="#FF6B00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+              fill="none" stroke="#FF6700" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
       </svg>
       <p style="
         font-family:'Inter',sans-serif;
@@ -558,14 +558,14 @@ def render_cta_slide(slide: dict | None = None) -> str:
   <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.04;" viewBox="0 0 1080 1350">
     <defs>
       <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-        <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#FF6B00" stroke-width="0.5"/>
+        <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#FF6700" stroke-width="0.5"/>
       </pattern>
     </defs>
     <rect width="1080" height="1350" fill="url(#grid)"/>
   </svg>
 
   <!-- Orange top bar -->
-  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6700;z-index:20;"></div>
 
   <!-- Centered content -->
   <div style="
@@ -606,14 +606,14 @@ def render_cta_slide(slide: dict | None = None) -> str:
     <div style="
       display:flex;align-items:center;gap:12px;
       padding:14px 32px;
-      border:1.5px solid rgba(255,107,0,0.5);
+      border:1.5px solid rgba(255,103,0,0.5);
       border-radius:4px;
     ">
       <span style="
         font-family:'Urbanist',sans-serif;
         font-size:18px;
         font-weight:600;
-        color:#FF6B00;
+        color:#FF6700;
         letter-spacing:1px;
       ">@wisuno</span>
     </div>

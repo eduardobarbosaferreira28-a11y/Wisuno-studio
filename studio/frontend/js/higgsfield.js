@@ -5,6 +5,8 @@
 window.higgsfieldPage = {
   currentSessionId: null,
   messages: [],
+  pendingImages: [],   // uploaded reference image URLs for the next message
+  webEnabled: false,   // "Browse web" toggle state
 
   init() {
     this.setupEventListeners();
@@ -15,6 +17,8 @@ window.higgsfieldPage = {
     document.getElementById("hf-new-chat").addEventListener("click", () => {
       this.currentSessionId = null;
       this.messages = [];
+      this.pendingImages = [];
+      this.renderAttachments();
       this.renderMessages();
       document.getElementById("hf-chat-title").innerText = "New Chat";
       document.querySelectorAll(".hf-session-item").forEach(el => el.style.background = "transparent");
@@ -33,6 +37,93 @@ window.higgsfieldPage = {
         this.sendMessage();
       }
     });
+
+    // ── Attachment toolbar ──────────────────────────────────────────────
+    const fileInput = document.getElementById("hf-file-input");
+    document.getElementById("hf-upload-btn").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const files = Array.from(fileInput.files || []);
+      files.forEach(f => this.uploadImage(f));
+      fileInput.value = ""; // allow re-selecting the same file
+    });
+
+    document.getElementById("hf-context-btn").addEventListener("click", () => {
+      const panel = document.getElementById("hf-context-panel");
+      const showing = panel.style.display !== "none";
+      panel.style.display = showing ? "none" : "block";
+      document.getElementById("hf-context-btn").classList.toggle("active", !showing || !!this.getContext());
+      if (!showing) document.getElementById("hf-context").focus();
+    });
+
+    document.getElementById("hf-context").addEventListener("input", () => {
+      document.getElementById("hf-context-btn").classList.toggle("active", !!this.getContext());
+    });
+
+    document.getElementById("hf-web-btn").addEventListener("click", () => {
+      this.webEnabled = !this.webEnabled;
+      document.getElementById("hf-web-btn").classList.toggle("active", this.webEnabled);
+    });
+  },
+
+  getContext() {
+    const el = document.getElementById("hf-context");
+    return el ? el.value.trim() : "";
+  },
+
+  // Upload a reference image to the backend and add it to the pending list.
+  async uploadImage(file) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files can be used as references.");
+      return;
+    }
+    const container = document.getElementById("hf-attachments");
+    container.style.display = "flex";
+    const chip = document.createElement("div");
+    chip.className = "hf-attach-chip uploading";
+    chip.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`;
+    container.appendChild(chip);
+
+    try {
+      let authHeader = {};
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session) authHeader = { Authorization: `Bearer ${session.access_token}` };
+
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      const res = await fetch("/api/higgsfield/upload", { method: "POST", headers: authHeader, body: formData });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      this.pendingImages.push(data.url);
+      this.renderAttachments();
+    } catch (e) {
+      console.error("Image upload failed", e);
+      toast.error("Image upload failed: " + e.message);
+      chip.remove();
+      if (!container.children.length) container.style.display = "none";
+    }
+  },
+
+  renderAttachments() {
+    const container = document.getElementById("hf-attachments");
+    container.innerHTML = "";
+    if (!this.pendingImages.length) {
+      container.style.display = "none";
+      return;
+    }
+    container.style.display = "flex";
+    this.pendingImages.forEach((url, idx) => {
+      const chip = document.createElement("div");
+      chip.className = "hf-attach-chip";
+      chip.innerHTML = `<img src="${url}" alt="reference">
+        <button class="hf-attach-remove" title="Remove" onclick="window.higgsfieldPage.removeAttachment(${idx})">✕</button>`;
+      container.appendChild(chip);
+    });
+  },
+
+  removeAttachment(idx) {
+    this.pendingImages.splice(idx, 1);
+    this.renderAttachments();
   },
 
   async loadSessions() {
@@ -142,17 +233,26 @@ window.higgsfieldPage = {
       let optionsHtml = "";
       htmlContent = htmlContent.replace(/\[Option\]\s*(.*?)<br>/gi, (match, p1) => {
         const optionText = p1.trim();
-        optionsHtml += `<button class="hf-option-btn" style="display:block; width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid rgba(255,107,0,0.3); border-radius:8px; padding:10px 14px; margin-top:8px; color:#fff; font-family:inherit; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="window.higgsfieldPage.submitOption('${optionText.replace(/'/g, "\\\\'")}')">${optionText}</button>`;
+        optionsHtml += `<button class="hf-option-btn" style="display:block; width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid rgba(255,103,0,0.3); border-radius:8px; padding:10px 14px; margin-top:8px; color:#fff; font-family:inherit; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,103,0,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="window.higgsfieldPage.submitOption('${optionText.replace(/'/g, "\\\\'")}')">${optionText}</button>`;
         return "";
       });
       // Catch [Option] if it's the very last thing without a <br>
       htmlContent = htmlContent.replace(/\[Option\]\s*(.*?)$/gi, (match, p1) => {
         const optionText = p1.trim();
-        optionsHtml += `<button class="hf-option-btn" style="display:block; width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid rgba(255,107,0,0.3); border-radius:8px; padding:10px 14px; margin-top:8px; color:#fff; font-family:inherit; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,107,0,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="window.higgsfieldPage.submitOption('${optionText.replace(/'/g, "\\\\'")}')">${optionText}</button>`;
+        optionsHtml += `<button class="hf-option-btn" style="display:block; width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid rgba(255,103,0,0.3); border-radius:8px; padding:10px 14px; margin-top:8px; color:#fff; font-family:inherit; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,103,0,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="window.higgsfieldPage.submitOption('${optionText.replace(/'/g, "\\\\'")}')">${optionText}</button>`;
         return "";
       });
 
       div.innerHTML = htmlContent;
+
+      // Render uploaded reference-image thumbnails on the user's own message.
+      if (msg.role === "user" && Array.isArray(msg.images) && msg.images.length) {
+        const thumbs = msg.images.map(u =>
+          `<img src="${u}" alt="reference" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.25);" />`
+        ).join("");
+        div.innerHTML += `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">${thumbs}</div>`;
+      }
+
       if (optionsHtml && msg.role === "assistant") {
         div.innerHTML += `<div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">${optionsHtml}</div>`;
       }
@@ -231,8 +331,15 @@ window.higgsfieldPage = {
     input.value = "";
     input.style.height = "auto";
 
-    // Add user message to UI
-    this.messages.push({ role: "user", content: text });
+    // Snapshot the attachments/context/web state for this turn, then clear the inputs.
+    const turnImages = this.pendingImages.slice();
+    const context = this.getContext();
+    const webEnabled = this.webEnabled;
+    this.pendingImages = [];
+    this.renderAttachments();
+
+    // Add user message to UI (with any reference thumbnails)
+    this.messages.push({ role: "user", content: text, images: turnImages });
     this.renderMessages();
 
     // Show loading
@@ -252,7 +359,10 @@ window.higgsfieldPage = {
     // However, since we send the whole history, we should send it as expected.
     const payload = {
       session_id: this.currentSessionId,
-      messages: this.messages.map(m => ({ role: m.role, content: m.content }))
+      messages: this.messages.map(m => ({ role: m.role, content: m.content })),
+      reference_image_urls: turnImages,
+      context: context,
+      web_enabled: webEnabled
     };
 
     try {

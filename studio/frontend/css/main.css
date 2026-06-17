@@ -1,6 +1,6 @@
 /* ============================================================
    Wisuno Studio — Design System
-   Dark theme · Brand orange #FF6B00 · Inter + Urbanist fonts
+   Dark theme · Brand orange #FF6700 · Inter + Urbanist fonts
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Urbanist:wght@700;900&display=swap');
@@ -10,10 +10,10 @@
 
 :root {
   /* Brand */
-  --orange:       #FF6B00;
+  --orange:       #FF6700;
   --orange-dim:   #cc5500;
-  --orange-glow:  rgba(255, 107, 0, 0.18);
-  --orange-subtle:rgba(255, 107, 0, 0.08);
+  --orange-glow:  rgba(255, 103, 0, 0.18);
+  --orange-subtle:rgba(255, 103, 0, 0.08);
 
   /* Surface */
   --bg:           #0A0A0A;
@@ -325,7 +325,7 @@ html, body {
 .btn-primary:hover {
   background: var(--orange-dim);
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(255, 103, 0, 0.35);
 }
 
 .btn-primary:active { transform: translateY(0); box-shadow: none; }
@@ -356,6 +356,66 @@ html, body {
   padding: 6px 14px;
   font-size: 12px;
 }
+
+/* Gen Studio attachment / tool toolbar buttons */
+.hf-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2, rgba(255,255,255,0.05));
+  color: var(--text-secondary, #ccc);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 18px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.hf-tool-btn:hover {
+  background: rgba(255, 103, 0, 0.1);
+  border-color: rgba(255, 103, 0, 0.4);
+  color: #fff;
+}
+
+.hf-tool-btn.active {
+  background: rgba(255, 103, 0, 0.15);
+  border-color: var(--orange, #FF6700);
+  color: var(--orange, #FF6700);
+}
+
+/* Uploaded reference image thumbnail chip */
+.hf-attach-chip {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 103, 0, 0.4);
+}
+
+.hf-attach-chip img { width: 100%; height: 100%; object-fit: cover; }
+
+.hf-attach-chip .hf-attach-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hf-attach-chip.uploading { opacity: 0.6; }
 
 .btn-icon {
   padding: 8px;
@@ -667,8 +727,8 @@ select {
 .step-item.error   .step-num { background: var(--red); border-color: var(--red); color: #fff; }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,0,0.4); }
-  50%       { box-shadow: 0 0 0 6px rgba(255,107,0,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,103,0,0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(255,103,0,0); }
 }
 
 .step-body {

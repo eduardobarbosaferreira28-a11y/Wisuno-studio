@@ -219,7 +219,7 @@ def generate_canva_prompt(spec: CanvaDesignSpec) -> str:
                 f"Logo from local file '{LOGO_DIR / 'White-Colored.png'}' (upload via upload-asset-from-url) top-left corner. "
                 f"Orange uppercase asset tag '{texts.get('asset_tag', '')}' — top-left or above headline. "
                 f"Very large bold white headline ALL CAPS: '{texts.get('headline', '')}'. "
-                f"Below headline: thin orange (#FF6B00) horizontal divider line ~180px. "
+                f"Below headline: thin orange (#FF6700) horizontal divider line ~180px. "
                 f"White subheadline: '{texts.get('subheadline', '')}'. "
                 f"Tiny disclaimer text at very bottom, color #888888."
             )
@@ -235,7 +235,7 @@ def generate_canva_prompt(spec: CanvaDesignSpec) -> str:
                 f"Slide {s.slide_number} (DATA): Solid dark background #0A0A0A. "
                 f"Orange asset tag pill '{texts.get('asset_tag', '')}' top-left. "
                 f"Large bold white section headline: '{texts.get('section_headline', '')}'. "
-                f"Vertical list of 3–5 data points, each on its own line — label in #CCCCCC, value in white or #FF6B00 for emphasis. "
+                f"Vertical list of 3–5 data points, each on its own line — label in #CCCCCC, value in white or #FF6700 for emphasis. "
                 f"Data: {dp_lines}. "
                 f"Takeaway line in italic grey at bottom of data block: '{texts.get('takeaway_line', '')}'. "
                 f"Tiny disclaimer at very bottom."
@@ -267,7 +267,7 @@ def generate_canva_prompt(spec: CanvaDesignSpec) -> str:
                 f"Slide {s.slide_number} (CHART): Dark background #0A0A0A. "
                 f"Orange asset tag top-left: '{texts.get('asset_tag', '')}'. "
                 f"Chart or graph occupying 60–75% of slide — dark-themed, minimal grid, "
-                f"orange (#FF6B00) chart line or bars, white axis labels. "
+                f"orange (#FF6700) chart line or bars, white axis labels. "
                 f"Chart subject: '{texts.get('chart_asset', '')}'. "
                 f"Grey caption below chart: '{texts.get('chart_caption', '')}'. "
                 f"Tiny disclaimer at very bottom."
@@ -306,7 +306,7 @@ No text, label, or disclaimer may extend outside these bounds.
 
 BRAND IDENTITY:
 - Background: Near-black #0A0A0A on all slides
-- Accent color: Orange #FF6B00
+- Accent color: Orange #FF6700
 - Primary text: #FFFFFF | Secondary text: #CCCCCC
 - Heading font: Urbanist Bold (all headlines, dominant text)
 - Body font: General Sans (body copy, labels, captions)
@@ -324,7 +324,7 @@ DESIGN RULES:
 - Every slide must feel like part of the same dark brand system
 - ALL text must stay inside the safe zone: {SAFE_LEFT}px left, {SAFE_RIGHT}px right, {SAFE_TOP}px top, {SAFE_BOTTOM}px bottom
 - Text must be large enough to read on mobile
-- Orange (#FF6B00) is used for: asset tags, data value emphasis, quote attributions, divider lines, chart lines
+- Orange (#FF6700) is used for: asset tags, data value emphasis, quote attributions, divider lines, chart lines
 - Disclaimer text is always the smallest element, #888888, at the very bottom of each slide
 - Never use white or light backgrounds — every slide background is #0A0A0A or a darkened photo
 """

@@ -9,7 +9,7 @@
   },
   "brand": {
     "primary_color": "#0A0A0A",
-    "accent_color": "#FF6B00",
+    "accent_color": "#FF6700",
     "text_primary": "#FFFFFF",
     "text_secondary": "#CCCCCC",
     "font_heading": "Urbanist Bold",
@@ -58,7 +58,7 @@
         "asset_tag": {
           "content": "Relevant traded instrument — e.g., 'OIL', 'USD/JPY', 'XAU/USD', 'GBP/USD'. Appears as a small label or pill badge.",
           "style": "Uppercase, small caps or label style",
-          "color": "#FF6B00 or white on dark badge",
+          "color": "#FF6700 or white on dark badge",
           "position": "Top-left or top-right corner, or above headline as a category tag"
         },
         "logo": {
@@ -88,7 +88,7 @@
         "slide_label": {
           "content": "Optional — repeats the asset tag or topic category from cover, e.g., 'OIL', 'INFLATION DATA', 'LABOR MARKET'",
           "position": "Top-left, small pill or label",
-          "color": "#FF6B00"
+          "color": "#FF6700"
         },
         "section_headline": {
           "content": "Short heading framing what the data shows. E.g., 'The math is getting harder', 'What the numbers say', 'February CPI breakdown'",
@@ -100,7 +100,7 @@
           "content": "3–5 data points. Each formatted as: [Label]: [Value] with optional directional context (Revised UP / DOWN, beats / misses expectations). Examples: 'Headline Inflation: Revised UP to 2.7%', 'GDP Growth: 2.4%', 'GBP/USD: Testing $1.34'",
           "style": "General Sans. Labels in regular weight. Values in bold or accent color.",
           "layout": "Vertical list with clear visual separation between items. Each stat on its own line.",
-          "color_scheme": "Label: #CCCCCC | Value: #FFFFFF or #FF6B00 for emphasis"
+          "color_scheme": "Label: #CCCCCC | Value: #FFFFFF or #FF6700 for emphasis"
         },
         "takeaway_line": {
           "content": "Single-sentence interpretation of the data block. Starts with 'Takeaway:' as a label prefix, or 'The bottom line:'. Connects numbers to market implications.",
@@ -125,7 +125,7 @@
         "slide_label": {
           "content": "Repeats asset/topic tag from cover",
           "position": "Top-left",
-          "color": "#FF6B00"
+          "color": "#FF6700"
         },
         "body_text": {
           "content": "Two to three short paragraphs. Each paragraph is 2–3 sentences max. Explains the mechanism: what the event triggers, how the market is pricing it, what the knock-on effect is. Language is accessible — avoids dense jargon but uses correct market terminology (rate differentials, yield advantage, war premium, safe-haven flows).",
@@ -161,7 +161,7 @@
         "attribution": {
           "content": "Name and title of the speaker, or 'Editorial' if the carousel author's commentary",
           "style": "General Sans regular, smaller",
-          "color": "#FF6B00 or #CCCCCC",
+          "color": "#FF6700 or #CCCCCC",
           "position": "Below quote, right-aligned or centered"
         },
         "rhetorical_caption": {
@@ -188,9 +188,9 @@
       },
       "elements": {
         "chart": {
-          "description": "One of: (1) Line chart showing price action of the relevant asset (oil price, DXY, GBP/USD, S&P 500). (2) Bar chart showing economic data comparison (e.g., jobs added month-over-month). (3) Annotated screenshot from a trading platform. Chart is clean, minimal, dark-themed to match brand. Axis labels in white or light grey. Chart line or bars use accent color (#FF6B00) or white. Key data points annotated with callout labels.",
+          "description": "One of: (1) Line chart showing price action of the relevant asset (oil price, DXY, GBP/USD, S&P 500). (2) Bar chart showing economic data comparison (e.g., jobs added month-over-month). (3) Annotated screenshot from a trading platform. Chart is clean, minimal, dark-themed to match brand. Axis labels in white or light grey. Chart line or bars use accent color (#FF6700) or white. Key data points annotated with callout labels.",
           "style": "Minimal. No chart junk. Grid lines very faint. Focus on the trend being discussed.",
-          "color_scheme": "Background: #0A0A0A | Chart line: #FF6B00 or #FFFFFF | Annotation text: #FFFFFF | Axis labels: #888888"
+          "color_scheme": "Background: #0A0A0A | Chart line: #FF6700 or #FFFFFF | Annotation text: #FFFFFF | Axis labels: #888888"
         },
         "chart_caption": {
           "content": "One-sentence description of what the chart shows. E.g., 'The US Labor Market going from +126k jobs in January to -92k jobs in February.'",
@@ -219,7 +219,7 @@
         "platform_label": {
           "content": "'Trading Platform'",
           "style": "General Sans, small caps or regular",
-          "color": "#FF6B00",
+          "color": "#FF6700",
           "position": "Above main headline"
         },
         "domain": {
@@ -360,7 +360,7 @@
   "fixed_elements": {
     "description": "Elements that do NOT change between carousels — hardcoded in the template",
     "elements": [
-      "Brand colors: #0A0A0A background, #FF6B00 accent, #FFFFFF primary text",
+      "Brand colors: #0A0A0A background, #FF6700 accent, #FFFFFF primary text",
       "Font stack: Urbanist Bold (headings), General Sans (body)",
       "Disclaimer text: identical on every slide",
       "CTA copy: 'Start trading with Wisuno. Start with a free demo...'",

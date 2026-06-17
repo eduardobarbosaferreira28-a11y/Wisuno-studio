@@ -1,16 +1,23 @@
 import os
 import json
+import uuid
+import tempfile
+from pathlib import Path
 from uuid import UUID
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
-from fastapi import APIRouter, HTTPException, Depends
+import httpx
+from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from pydantic import BaseModel
 from supabase import create_client, Client
 
 from services import gen_service
+from services.supabase_client import upload_to_storage
 from dependencies.auth import get_current_user, user_id_of, is_admin
 
 router = APIRouter(prefix="/api/higgsfield", tags=["higgsfield"])
+
+ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 # Get Supabase Client
 def get_supabase() -> Client:
@@ -20,6 +27,42 @@ def get_supabase() -> Client:
         raise HTTPException(status_code=500, detail="Missing Supabase credentials")
     return create_client(url, key)
 
+
+def _download_image(url: str) -> Optional[Tuple[bytes, str]]:
+    """Fetch an uploaded reference image and return (bytes, mime_type)."""
+    try:
+        resp = httpx.get(url, timeout=30, follow_redirects=True)
+        resp.raise_for_status()
+        mime = resp.headers.get("content-type", "image/png").split(";")[0].strip()
+        if not mime.startswith("image/"):
+            mime = "image/png"
+        return resp.content, mime
+    except Exception as e:  # noqa: BLE001
+        print(f"[higgsfield] Failed to download reference image {url}: {e}")
+        return None
+
+
+@router.post("/upload")
+async def upload_reference_image(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Upload a reference image from the user's computer; returns its public URL."""
+    suffix = Path(file.filename or "image.png").suffix.lower()
+    if suffix not in ALLOWED_IMAGE_EXTS:
+        raise HTTPException(400, f"Unsupported image format '{suffix}'. Use: {', '.join(sorted(ALLOWED_IMAGE_EXTS))}")
+
+    asset_id = uuid.uuid4().hex[:12]
+    tmp = Path(tempfile.gettempdir()) / f"gen_upload_{asset_id}{suffix}"
+    try:
+        tmp.write_bytes(await file.read())
+        content_type = file.content_type or f"image/{suffix.lstrip('.')}"
+        url = upload_to_storage(gen_service.ASSET_BUCKET, f"gen/uploads/{asset_id}{suffix}", str(tmp), content_type)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+    if not url:
+        raise HTTPException(500, "Upload failed: could not store image.")
+    return {"url": url}
+
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -27,6 +70,9 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     messages: List[ChatMessage] # Full history including the new user message
+    reference_image_urls: Optional[List[str]] = None  # Uploaded visual references (this turn)
+    context: Optional[str] = None  # Persistent campaign brief / notes for this chat
+    web_enabled: bool = False  # Allow Claude to use the native web_search tool
 
 @router.post("/chat")
 async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
@@ -62,9 +108,26 @@ async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    # 3. Format messages for Anthropic
-    anthropic_msgs = [{"role": m.role, "content": m.content} for m in req.messages]
-    
+    # 3. Format messages for Anthropic. Attach any uploaded reference images to the
+    #    latest user turn as image blocks so Claude can see them, and download the
+    #    bytes to hand to the Gemini/Veo generators for image-to-image / image-to-video.
+    anthropic_msgs: List[Dict[str, Any]] = [{"role": m.role, "content": m.content} for m in req.messages]
+    reference_images: List[Tuple[bytes, str]] = []
+    if req.reference_image_urls:
+        image_blocks = []
+        for url in req.reference_image_urls:
+            image_blocks.append({"type": "image", "source": {"type": "url", "url": url}})
+            downloaded = _download_image(url)
+            if downloaded:
+                reference_images.append(downloaded)
+        # Convert the last user message's plain text into a content-block list + images.
+        for i in range(len(anthropic_msgs) - 1, -1, -1):
+            if anthropic_msgs[i]["role"] == "user":
+                text = anthropic_msgs[i]["content"]
+                blocks = image_blocks + ([{"type": "text", "text": text}] if text else [])
+                anthropic_msgs[i]["content"] = blocks
+                break
+
     # 4. Call Higgsfield Service
     system_prompt = (
         "You are the Wisuno Gen Studio AI. You generate marketing visuals using Google's "
@@ -85,13 +148,25 @@ async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
         "CRITICAL GENERATION INSTRUCTIONS:\n"
         "1. For images: the tool returns a markdown image link — embed it verbatim in your final reply so it displays.\n"
         "2. For videos: do NOT include any link or placeholder URL. Just tell the user the video is rendering; the app shows it automatically when done.\n"
-        "3. Wisuno Brand Guidelines: Neon Orange #FF6B00, Obsidian Black #0A0A0A, Cloud Mist #FAFAFA, Urbanist/Inter fonts. Weave these into your generation prompts.\n"
-        "4. Disclaimer: The required CFD risk disclaimer is added AUTOMATICALLY to the bottom of every generated image and video by the system. Do NOT ask the model to render any disclaimer text in your prompts, and do NOT include disclaimer text yourself — it is handled for you. Keep the visual area near the bottom edge relatively clean so the disclaimer remains readable."
+        "3. Wisuno Brand Guidelines: Neon Orange #FF6700, Obsidian Black #0A0A0A, Cloud Mist #FAFAFA, Urbanist/General Sans fonts. Weave these into your generation prompts. (The brand guideline and the Wisuno logo are also enforced automatically by the system on every generation — they are locked.)\n"
+        "4. Disclaimer: The required CFD risk disclaimer is added AUTOMATICALLY to the bottom of every generated image and video by the system. Do NOT ask the model to render any disclaimer text in your prompts, and do NOT include disclaimer text yourself — it is handled for you. Keep the visual area near the bottom edge relatively clean so the disclaimer remains readable.\n"
+        "5. Reference images: If the user uploaded an image, it is available to the tools. Use generate_image with use_reference_image=true to edit/restyle it (image-to-image), or generate_video with use_reference_image=true to animate it (image-to-video). Set use_reference_image=false to ignore the upload and generate fresh.\n"
+        "6. Web search: When the web_search tool is available, use it to ground requests that need current facts, figures, prices, or trends before generating."
     )
+
+    # Inject the persistent campaign context (if any) so it shapes every prompt this turn.
+    if req.context and req.context.strip():
+        system_prompt += (
+            "\n\nCAMPAIGN CONTEXT (apply this to everything you generate this chat):\n"
+            f"{req.context.strip()}"
+        )
 
     started_video_jobs: list = []
     try:
-        result = await gen_service.chat(anthropic_msgs, system_prompt, session_id=session_id, user_id=uid)
+        result = await gen_service.chat(
+            anthropic_msgs, system_prompt, session_id=session_id, user_id=uid,
+            reference_images=reference_images, web_enabled=req.web_enabled,
+        )
         assistant_reply = result["reply"]
         started_video_jobs = result.get("video_jobs", [])
     except Exception as e:

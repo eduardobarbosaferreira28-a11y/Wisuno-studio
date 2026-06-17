@@ -53,8 +53,8 @@ Output goes to `output/<slugified-title>/`.
 | Canvas | 1080 × 1350 px (4:5 portrait) |
 | Background | `#0A0A0A` (near-black) on all slides |
 | Heading font | Urbanist Bold (900 weight) — Google Fonts |
-| Body font | Inter (300/400/500/600) — Google Fonts |
-| Accent / Orange | `#FF6B00` |
+| Body font | General Sans (brand canonical) — Inter (300/400/500/600) is the Google Fonts web substitute actually loaded in rendered carousels |
+| Accent / Orange | `#FF6700` |
 | Primary text | `#FFFFFF` |
 | Secondary text | `#CCCCCC` |
 | Disclaimer text | `#888888` |
@@ -72,7 +72,7 @@ Output goes to `output/<slugified-title>/`.
 | Analysis bar | `left: 180px; width: 4px;` orange gradient |
 | Analysis text | `left: 212px;` (180 + 4px bar + 28px gap) |
 | Orange accent line | `width: 56px; height: 3px;` |
-| Top bar (data/cta) | `height: 5px; background: #FF6B00;` |
+| Top bar (data/cta) | `height: 5px; background: #FF6700;` |
 
 Logo: `Wisuno Logo/White-Colored.png` — embedded as base64 data URI in every slide.
 
@@ -132,7 +132,7 @@ Slide count variants (MIN_SLIDES=4, MAX_SLIDES=8, DEFAULT_SLIDES=6):
 - **`output/cpi-38-inflation-test/carousel.html` is the visual reference** — new carousels must look identical to it (only content differs)
 - Never skip the disclaimer on any slide — verbatim string from `config.py DISCLAIMER`
 - All slide backgrounds are `#0A0A0A`; full-bleed photos always get a gradient dark overlay
-- Orange `#FF6B00` is used for: asset tags, data value emphasis, quote attributions, divider lines, chart lines/bars, top accent bars
+- Orange `#FF6700` is used for: asset tags, data value emphasis, quote attributions, divider lines, chart lines/bars, top accent bars
 - Safe zone is 180 px on all four sides — no text, logo, or disclaimer outside this boundary
 - Gemini images are cached to `images/` — re-running reuses the cached file automatically
 - The carousel HTML is fully self-contained (no external assets at runtime except Google Fonts)

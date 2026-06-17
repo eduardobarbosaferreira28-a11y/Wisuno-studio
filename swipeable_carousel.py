@@ -22,7 +22,7 @@ from pathlib import Path
 
 # ── Brand tokens ────────────────────────────────────────────────────────────
 _BG       = "#0A0A0A"
-_ORANGE   = "#FF6B00"
+_ORANGE   = "#FF6700"
 _WHITE    = "#FFFFFF"
 _GRAY     = "#CCCCCC"
 _DIM      = "#888888"
@@ -269,11 +269,11 @@ _SLIDE_CSS = """
   display: inline-block;
   font-family: 'Urbanist', sans-serif;
   font-size: 13px; font-weight: 700;
-  color: #FF6B00;
+  color: #FF6700;
   letter-spacing: 3px;
   text-transform: uppercase;
   padding: 7px 16px;
-  border: 1.5px solid #FF6B00;
+  border: 1.5px solid #FF6700;
   border-radius: 3px;
 }
 
@@ -288,7 +288,7 @@ _SLIDE_CSS = """
 
 .slide-inner .o-line {
   width: 56px; height: 3px;
-  background: #FF6B00;
+  background: #FF6700;
   border-radius: 2px;
 }
 
@@ -303,7 +303,7 @@ _SLIDE_CSS = """
   font-family: 'Urbanist', sans-serif;
   font-size: 28px;
   font-weight: 900;
-  color: #FF6B00;
+  color: #FF6700;
   line-height: 1;
   flex-shrink: 0;
   width: 40px;
@@ -370,7 +370,7 @@ def _render_cover(slide: dict, bg_data_uri: str | None = None, disclaimer: str =
 
 
 _DIR_ARROW = {"UP": "↑", "DOWN": "↓", "FLAT": "→"}
-_DIR_COLOR = {"UP": "#FF6B00", "DOWN": "#EF4444", "FLAT": "#888888"}
+_DIR_COLOR = {"UP": "#FF6700", "DOWN": "#EF4444", "FLAT": "#888888"}
 
 
 def _render_data_slide(slide: dict, disclaimer: str = "", light: bool = False) -> str:
@@ -407,7 +407,7 @@ def _render_data_slide(slide: dict, disclaimer: str = "", light: bool = False) -
 
     return f"""
 <div class="slide-inner" style="background:{bg};">
-  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -418,7 +418,7 @@ def _render_data_slide(slide: dict, disclaimer: str = "", light: bool = False) -
                color:{primary};line-height:1.15;margin-bottom:36px;">{headline}</h2>
     <div style="flex:1;">{rows}</div>
     <div style="margin-top:32px;padding:20px 24px;
-                border-left:3px solid #FF6B00;background:rgba(255,107,0,0.06);">
+                border-left:3px solid #FF6700;background:rgba(255,103,0,0.06);">
       <p style="font-family:'Inter',sans-serif;font-size:15px;font-weight:500;
                 color:{secondary};line-height:1.55;font-style:italic;">{takeaway}</p>
     </div>
@@ -438,7 +438,7 @@ def _render_analysis_slide(slide: dict, slide_num: int = 0, disclaimer: str = ""
     primary   = _LIGHT_PRIMARY   if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
     dim       = _LIGHT_DIM       if light else _DIM
-    watermark = "rgba(255,107,0,0.22)" if light else "rgba(255,107,0,0.08)"
+    watermark = "rgba(255,103,0,0.22)" if light else "rgba(255,103,0,0.08)"
 
     paras = ""
     for i, p in enumerate(paragraphs):
@@ -458,7 +458,7 @@ def _render_analysis_slide(slide: dict, slide_num: int = 0, disclaimer: str = ""
                  color:{watermark};line-height:1;">{label}</span>
   </div>
   <div style="position:absolute;top:260px;left:180px;width:4px;bottom:340px;
-              background:linear-gradient(to bottom,#FF6B00 0%,rgba(255,107,0,0) 100%);
+              background:linear-gradient(to bottom,#FF6700 0%,rgba(255,103,0,0) 100%);
               border-radius:4px;z-index:10;"></div>
   <div style="position:absolute;top:260px;left:212px;right:180px;bottom:340px;
               display:flex;flex-direction:column;justify-content:center;">
@@ -478,7 +478,7 @@ def _render_quote_slide(slide: dict, img_uri: str | None = None, disclaimer: str
     logo_uri  = _dark_logo() if light else _logo()
     primary   = _LIGHT_PRIMARY   if light else _WHITE
     dim       = _LIGHT_DIM       if light else _DIM
-    watermark = "rgba(255,107,0,0.28)" if light else "rgba(255,107,0,0.12)"
+    watermark = "rgba(255,103,0,0.28)" if light else "rgba(255,103,0,0.12)"
     rhet_color = "#555555" if light else "#888888"
 
     rhetorical_html = ""
@@ -516,9 +516,9 @@ def _render_quote_slide(slide: dict, img_uri: str | None = None, disclaimer: str
     <blockquote style="font-family:'Urbanist',sans-serif;font-size:32px;font-weight:700;
                        color:{primary};line-height:1.4;max-width:900px;flex-shrink:0;">{quote}</blockquote>
     <div style="display:flex;align-items:center;gap:16px;margin-top:36px;flex-shrink:0;">
-      <div style="width:40px;height:2px;background:#FF6B00;border-radius:1px;"></div>
+      <div style="width:40px;height:2px;background:#FF6700;border-radius:1px;"></div>
       <span style="font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
-                   color:#FF6B00;letter-spacing:1px;text-transform:uppercase;">{attribution}</span>
+                   color:#FF6700;letter-spacing:1px;text-transform:uppercase;">{attribution}</span>
     </div>
     {rhetorical_html}
     {img_panel}
@@ -548,14 +548,14 @@ def _render_chart_slide(slide: dict, chart_data_uri: str | None = None, disclaim
     </div>"""
     else:
         chart_content = f"""
-    <div style="width:100%;flex:1;border:1px solid rgba(255,107,0,0.2);border-radius:4px;
-                background:rgba(255,107,0,0.03);display:flex;flex-direction:column;
+    <div style="width:100%;flex:1;border:1px solid rgba(255,103,0,0.2);border-radius:4px;
+                background:rgba(255,103,0,0.03);display:flex;flex-direction:column;
                 align-items:center;justify-content:center;position:relative;overflow:hidden;">
       <svg viewBox="0 0 900 500" style="width:90%;height:auto;opacity:0.6;">
         <defs>
           <linearGradient id="og2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#FF6B00" stop-opacity="0.3"/>
-            <stop offset="100%" stop-color="#FF6B00" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#FF6700" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#FF6700" stop-opacity="0"/>
           </linearGradient>
         </defs>
         <line x1="0" y1="100" x2="900" y2="100" stroke="{grid_stroke}" stroke-width="1"/>
@@ -565,7 +565,7 @@ def _render_chart_slide(slide: dict, chart_data_uri: str | None = None, disclaim
         <path d="M0,400 C100,380 150,320 220,260 S340,160 420,130 S580,90 660,110 S800,150 900,80 L900,500 L0,500 Z"
               fill="url(#og2)"/>
         <path d="M0,400 C100,380 150,320 220,260 S340,160 420,130 S580,90 660,110 S800,150 900,80"
-              fill="none" stroke="#FF6B00" stroke-width="3"
+              fill="none" stroke="#FF6700" stroke-width="3"
               stroke-linejoin="round" stroke-linecap="round"/>
       </svg>
       <p style="font-family:'Inter',sans-serif;font-size:13px;color:#555;
@@ -615,12 +615,12 @@ def _render_cta_slide(slide: dict | None = None, language: str = "en",
        viewBox="0 0 1080 1350">
     <defs>
       <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-        <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#FF6B00" stroke-width="0.5"/>
+        <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#FF6700" stroke-width="0.5"/>
       </pattern>
     </defs>
     <rect width="1080" height="1350" fill="url(#grid)"/>
   </svg>
-  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6B00;z-index:20;"></div>
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;bottom:340px;left:0;right:0;display:flex;flex-direction:column;
               align-items:center;justify-content:center;padding:0 180px;
               text-align:center;z-index:10;">
@@ -635,9 +635,9 @@ def _render_cta_slide(slide: dict | None = None, language: str = "en",
       {_e(body)}
     </p>
     <div style="display:flex;align-items:center;gap:12px;padding:14px 32px;
-                border:1.5px solid rgba(255,107,0,0.5);border-radius:4px;">
+                border:1.5px solid rgba(255,103,0,0.5);border-radius:4px;">
       <span style="font-family:'Urbanist',sans-serif;font-size:18px;font-weight:600;
-                   color:#FF6B00;letter-spacing:1px;">@wisuno</span>
+                   color:#FF6700;letter-spacing:1px;">@wisuno</span>
     </div>
   </div>
   <div class="disclaimer" style="text-align:center;color:{dim};">{_e(disclaimer)}</div>
@@ -676,7 +676,7 @@ def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: s
     return f"""
 <div class="slide-inner" style="background:{bg};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -685,15 +685,15 @@ def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: s
               display:flex;flex-direction:column;{justify}gap:0;">
     <div class="o-line" style="margin-bottom:20px;flex-shrink:0;"></div>
     <h2 style="font-family:'Urbanist',sans-serif;font-size:44px;font-weight:900;
-               color:#FF6B00;line-height:1.05;text-transform:uppercase;
+               color:#FF6700;line-height:1.05;text-transform:uppercase;
                letter-spacing:1px;margin-bottom:20px;flex-shrink:0;">{term}</h2>
-    <div style="width:100%;height:1px;background:rgba(255,107,0,0.25);
+    <div style="width:100%;height:1px;background:rgba(255,103,0,0.25);
                 margin-bottom:28px;flex-shrink:0;"></div>
     <p style="font-family:'Inter',sans-serif;font-size:18px;font-weight:400;
               color:{primary};line-height:1.65;margin-bottom:36px;flex-shrink:0;">{definition}</p>
     <div style="flex-shrink:0;">
       <span style="font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
-                   color:#FF6B00;letter-spacing:3px;text-transform:uppercase;
+                   color:#FF6700;letter-spacing:3px;text-transform:uppercase;
                    display:block;margin-bottom:10px;">{why_label}</span>
       <p style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;
                 color:{secondary};line-height:1.6;">{why_matters}</p>
@@ -744,7 +744,7 @@ def _render_steps_slide(slide: dict, img_uri: str | None = None, disclaimer: str
     return f"""
 <div class="slide-inner" style="background:{bg};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -806,7 +806,7 @@ def _render_comparison_slide(slide: dict, img_uri: str | None = None, disclaimer
     return f"""
 <div class="slide-inner" style="background:{bg};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -817,12 +817,12 @@ def _render_comparison_slide(slide: dict, img_uri: str | None = None, disclaimer
                color:{primary};line-height:1.15;margin-bottom:24px;flex-shrink:0;">{headline}</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;margin-bottom:12px;flex-shrink:0;">
       <span style="font-family:'Urbanist',sans-serif;font-size:13px;font-weight:700;
-                   color:#FF6B00;letter-spacing:2px;text-transform:uppercase;">{col_a}</span>
+                   color:#FF6700;letter-spacing:2px;text-transform:uppercase;">{col_a}</span>
       <span style="font-family:'Urbanist',sans-serif;font-size:13px;font-weight:700;
                    color:{secondary};letter-spacing:2px;text-transform:uppercase;
                    padding-left:12px;border-left:1px solid {col_divider};">{col_b}</span>
     </div>
-    <div style="width:100%;height:1px;background:rgba(255,107,0,0.3);margin-bottom:4px;flex-shrink:0;"></div>
+    <div style="width:100%;height:1px;background:rgba(255,103,0,0.3);margin-bottom:4px;flex-shrink:0;"></div>
     <div style="{rows_style}">{rows_html}</div>
     {img_panel}
   </div>
@@ -867,7 +867,7 @@ def _render_example_slide(slide: dict, img_uri: str | None = None, disclaimer: s
     return f"""
 <div class="slide-inner" style="background:{bg};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -879,11 +879,11 @@ def _render_example_slide(slide: dict, img_uri: str | None = None, disclaimer: s
     <p style="font-family:'Inter',sans-serif;font-size:17px;font-style:italic;
               color:{secondary};line-height:1.5;margin-bottom:36px;flex-shrink:0;">{scenario}</p>
     <span style="font-family:'Urbanist',sans-serif;font-size:52px;font-weight:900;
-                 color:#FF6B00;line-height:1;display:block;margin-bottom:8px;flex-shrink:0;">{featured_number}</span>
+                 color:#FF6700;line-height:1;display:block;margin-bottom:8px;flex-shrink:0;">{featured_number}</span>
     <span style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500;
                  color:{dim};letter-spacing:2px;text-transform:uppercase;
                  display:block;margin-bottom:24px;flex-shrink:0;">{number_label}</span>
-    <div style="width:100%;height:1px;background:rgba(255,107,0,0.25);margin-bottom:24px;flex-shrink:0;"></div>
+    <div style="width:100%;height:1px;background:rgba(255,103,0,0.25);margin-bottom:24px;flex-shrink:0;"></div>
     <p style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;
               color:{primary};line-height:1.65;flex-shrink:0;">{narrative}</p>
     {outcome_html}
@@ -910,7 +910,7 @@ def _render_value_prop_slide(slide: dict, disclaimer: str = "") -> str:
         rows += f"""
     <div style="display:flex;gap:24px;align-items:flex-start;padding:22px 0;{border}flex-shrink:0;">
       <span style="font-family:'Urbanist',sans-serif;font-size:22px;font-weight:900;
-                   color:#FF6B00;line-height:1;min-width:36px;">{str(i + 1).zfill(2)}</span>
+                   color:#FF6700;line-height:1;min-width:36px;">{str(i + 1).zfill(2)}</span>
       <div>
         <h3 style="font-family:'Urbanist',sans-serif;font-size:22px;font-weight:700;
                    color:{_WHITE};line-height:1.15;margin-bottom:6px;">{title}</h3>
@@ -922,13 +922,13 @@ def _render_value_prop_slide(slide: dict, disclaimer: str = "") -> str:
     eyebrow_html = ""
     if eyebrow:
         eyebrow_html = f"""<span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
-                 color:#FF6B00;letter-spacing:3px;text-transform:uppercase;
+                 color:#FF6700;letter-spacing:3px;text-transform:uppercase;
                  display:block;margin-bottom:14px;flex-shrink:0;">{eyebrow}</span>"""
 
     return f"""
 <div class="slide-inner" style="background:{_BG};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -959,7 +959,7 @@ def _render_benefits_slide(slide: dict, disclaimer: str = "") -> str:
         rows += f"""
     <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 0;
                 border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
-      <span style="color:#FF6B00;font-size:20px;font-weight:900;line-height:1.4;flex-shrink:0;">&#10003;</span>
+      <span style="color:#FF6700;font-size:20px;font-weight:900;line-height:1.4;flex-shrink:0;">&#10003;</span>
       <p style="font-family:'Inter',sans-serif;font-size:{fs};font-weight:400;
                 color:{_WHITE};line-height:1.5;flex:1;">{text}</p>
     </div>"""
@@ -967,7 +967,7 @@ def _render_benefits_slide(slide: dict, disclaimer: str = "") -> str:
     return f"""
 <div class="slide-inner" style="background:{_BG};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -1005,7 +1005,7 @@ def _render_feature_slide(slide: dict, img_uri: str | None = None, disclaimer: s
     return f"""
 <div class="slide-inner" style="background:{_BG};">
   <div style="position:absolute;top:0;left:0;right:0;height:5px;
-              background:#FF6B00;z-index:20;"></div>
+              background:#FF6700;z-index:20;"></div>
   <div style="position:absolute;top:180px;left:180px;z-index:20;">
     <span class="asset-tag">{tag}</span>
   </div>
@@ -1014,7 +1014,7 @@ def _render_feature_slide(slide: dict, img_uri: str | None = None, disclaimer: s
               display:flex;flex-direction:column;{justify}gap:0;">
     <div class="o-line" style="margin-bottom:20px;flex-shrink:0;"></div>
     <h2 style="font-family:'Urbanist',sans-serif;font-size:46px;font-weight:900;
-               color:#FF6B00;line-height:1.05;text-transform:uppercase;letter-spacing:1px;
+               color:#FF6700;line-height:1.05;text-transform:uppercase;letter-spacing:1px;
                margin-bottom:20px;flex-shrink:0;">{name}</h2>
     <p style="font-family:'Inter',sans-serif;font-size:19px;font-weight:400;
               color:{_GRAY};line-height:1.6;flex-shrink:0;">{detail}</p>
@@ -1177,9 +1177,9 @@ def build_swipeable_html(
     .nav-arrow {{
       position: absolute;
       top: 50%; transform: translateY(-50%);
-      background: rgba(255,107,0,0.12);
-      border: 1px solid rgba(255,107,0,0.35);
-      color: #FF6B00;
+      background: rgba(255,103,0,0.12);
+      border: 1px solid rgba(255,103,0,0.35);
+      color: #FF6700;
       width: 40px; height: 40px;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -1189,7 +1189,7 @@ def build_swipeable_html(
       outline: none;
       padding: 0;
     }}
-    .nav-arrow:hover {{ background: rgba(255,107,0,0.28); }}
+    .nav-arrow:hover {{ background: rgba(255,103,0,0.28); }}
     #btn-prev {{ right: calc(100% + 14px); }}
     #btn-next {{ left:  calc(100% + 14px); }}
 
@@ -1210,7 +1210,7 @@ def build_swipeable_html(
       transition: background 0.2s, transform 0.2s;
     }}
     .dot.active {{
-      background: #FF6B00;
+      background: #FF6700;
       transform: scale(1.4);
     }}
 
@@ -1229,9 +1229,9 @@ def build_swipeable_html(
       margin-top: 16px;
       padding: 10px 28px;
       background: transparent;
-      border: 1.5px solid rgba(255,107,0,0.45);
+      border: 1.5px solid rgba(255,103,0,0.45);
       border-radius: 4px;
-      color: #FF6B00;
+      color: #FF6700;
       font-family: 'Inter', sans-serif;
       font-size: 11px;
       font-weight: 600;
@@ -1242,8 +1242,8 @@ def build_swipeable_html(
       outline: none;
     }}
     #btn-download:hover:not(:disabled) {{
-      background: rgba(255,107,0,0.1);
-      border-color: rgba(255,107,0,0.8);
+      background: rgba(255,103,0,0.1);
+      border-color: rgba(255,103,0,0.8);
     }}
     #btn-download:disabled {{
       opacity: 0.45;
