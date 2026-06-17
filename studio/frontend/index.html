@@ -208,6 +208,32 @@
 
         <!-- Input Area -->
         <div style="padding:20px 30px; background:var(--bg-darker); border-top:1px solid rgba(255,255,255,0.08);">
+
+          <!-- Collapsible context panel (toggled by the "Add context" button) -->
+          <div id="hf-context-panel" style="display:none; margin-bottom:12px;">
+            <textarea id="hf-context" rows="2" placeholder="Add persistent context for this chat — e.g. 'EARN+ campaign, target Gen-Z, energetic upbeat tone'. Applied to every generation." style="width:100%; box-sizing:border-box; background:var(--bg-lighter); border:1px solid rgba(255,103,0,0.3); border-radius:12px; padding:10px 14px; color:#fff; font-family:inherit; font-size:13px; resize:vertical; outline:none;"></textarea>
+          </div>
+
+          <!-- Pending uploaded reference image thumbnails -->
+          <div id="hf-attachments" style="display:none; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
+
+          <!-- Attachment / tool toolbar -->
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <input type="file" id="hf-file-input" accept="image/*" multiple style="display:none">
+            <button type="button" id="hf-upload-btn" class="hf-tool-btn" title="Upload an image from your computer to use as a visual reference">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              Upload
+            </button>
+            <button type="button" id="hf-context-btn" class="hf-tool-btn" title="Add persistent campaign context for this chat">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg>
+              Add context
+            </button>
+            <button type="button" id="hf-web-btn" class="hf-tool-btn" title="Let the AI browse the web for current info before generating">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              Browse web
+            </button>
+          </div>
+
           <form id="hf-chat-form" style="display:flex; gap:12px; position:relative;">
             <textarea id="hf-input" placeholder="E.g., Generate a promotional Banner for the EARN+ campaign in 9:16 format" rows="1" style="flex:1; background:var(--bg-lighter); border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:12px 20px; color:#fff; font-family:inherit; font-size:14px; resize:none; overflow:hidden; outline:none; transition: border-color 0.2s;"></textarea>
             <button type="submit" id="hf-send-btn" class="btn btn-primary" style="border-radius:24px; padding:0 24px; display:flex; align-items:center; justify-content:center;">
@@ -262,7 +288,7 @@
   <script src="/js/dashboard.js?v=15"></script>
   <script src="/js/setup.js?v=15"></script>
   <script src="/js/carousel.js?v=16"></script>
-  <script src="/js/video.js?v=14"></script>
+  <script src="/js/video.js?v=15"></script>
   <script src="/js/higgsfield.js?v=3"></script>
 </body>
 </html>
