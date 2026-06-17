@@ -30,7 +30,7 @@ const GRADE_PRESETS = [
 ];
 
 const BEAT_COLORS = {
-  HOOK:       '#FF6B00',
+  HOOK:       '#FF6700',
   POINT:      '#3b82f6',
   EXAMPLE:    '#22c55e',
   INSIGHT:    '#a855f7',
@@ -340,27 +340,45 @@ const videoPage = {
       const totalChunks = Math.ceil(file.size / chunkSize);
       const uploadId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
 
-      // 2. Upload each chunk sequentially
+      // 2. Upload each chunk sequentially, retrying transient failures so a
+      //    single network blip or auth hiccup doesn't abort the whole upload.
+      const MAX_CHUNK_ATTEMPTS = 4;
       for (let i = 0; i < totalChunks; i++) {
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
-        const formData = new FormData();
-        formData.append('upload_id', uploadId);
-        formData.append('chunk_index', i);
-        formData.append('file', chunk, file.name);
-
         btn.textContent = `Uploading… ${Math.round(((i) / totalChunks) * 100)}%`;
 
-        const resp = await fetch('/api/video/upload_chunk', {
-          method: 'POST',
-          headers: authHeader,
-          body: formData
-        });
+        let lastErr = null;
+        let uploaded = false;
+        for (let attempt = 1; attempt <= MAX_CHUNK_ATTEMPTS; attempt++) {
+          // FormData must be rebuilt per attempt — the stream is consumed once.
+          const formData = new FormData();
+          formData.append('upload_id', uploadId);
+          formData.append('chunk_index', i);
+          formData.append('file', chunk, file.name);
 
-        if (!resp.ok) {
-          throw new Error(`Upload failed at chunk ${i + 1}/${totalChunks}`);
+          try {
+            const resp = await fetch('/api/video/upload_chunk', {
+              method: 'POST',
+              headers: authHeader,
+              body: formData
+            });
+            if (resp.ok) { uploaded = true; break; }
+            lastErr = new Error(`HTTP ${resp.status}`);
+          } catch (e) {
+            lastErr = e; // network error — retry
+          }
+
+          if (attempt < MAX_CHUNK_ATTEMPTS) {
+            btn.textContent = `Retrying chunk ${i + 1}/${totalChunks}… (${attempt}/${MAX_CHUNK_ATTEMPTS - 1})`;
+            await new Promise(r => setTimeout(r, 1000 * attempt)); // linear backoff
+          }
+        }
+
+        if (!uploaded) {
+          throw new Error(`Upload failed at chunk ${i + 1}/${totalChunks}${lastErr ? ` (${lastErr.message})` : ''}`);
         }
       }
 

@@ -1,10 +1,48 @@
 import os
+import time
+import hashlib
 
 from fastapi import Security, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from studio.backend.services.supabase_client import supabase
 
 security = HTTPBearer()
+
+# ── Token verification cache ───────────────────────────────────────────────────
+# `supabase.auth.get_user()` is a live network round-trip to Supabase's auth
+# server. A chunked upload fires one auth call PER chunk (e.g. 39 for an 800 MB
+# video), which is slow and trips Supabase's rate limit — a single 429 then
+# raises 401 and aborts the whole upload. We cache successful verifications by
+# token for a short TTL so a multi-request burst (chunked upload) costs one auth
+# call instead of dozens. Revocation/expiry is still honored within the TTL
+# window, which is negligible for this internal tool.
+_TOKEN_CACHE: dict[str, tuple[float, object]] = {}
+_TOKEN_CACHE_TTL = 60.0  # seconds
+
+
+def _cache_key(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _cache_get(token: str):
+    entry = _TOKEN_CACHE.get(_cache_key(token))
+    if not entry:
+        return None
+    expires_at, user = entry
+    if time.time() >= expires_at:
+        _TOKEN_CACHE.pop(_cache_key(token), None)
+        return None
+    return user
+
+
+def _cache_put(token: str, user) -> None:
+    # Opportunistically evict expired entries so the dict can't grow unbounded.
+    now = time.time()
+    if len(_TOKEN_CACHE) > 256:
+        for k, (exp, _) in list(_TOKEN_CACHE.items()):
+            if now >= exp:
+                _TOKEN_CACHE.pop(k, None)
+    _TOKEN_CACHE[_cache_key(token)] = (now + _TOKEN_CACHE_TTL, user)
 
 # Emails that get full admin visibility (see every user's data). Overridable via
 # the ADMIN_EMAILS env var (comma-separated). Defaults to the owner account.
@@ -48,6 +86,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
         return {"id": "local_dev_user", "role": "admin"}
         
     token = credentials.credentials
+
+    cached = _cache_get(token)
+    if cached is not None:
+        return cached
+
     try:
         # Verify the JWT token by fetching the user profile
         user_response = supabase.auth.get_user(token)
@@ -56,7 +99,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token",
             )
+        _cache_put(token, user_response.user)
         return user_response.user
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
