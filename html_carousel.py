@@ -200,13 +200,19 @@ TRANSLATION RULES:
   sentence, paragraph, quote, term, definition, list item, table cell, caption, and eyebrow. Do not
   leave any visible text in English. This includes (non-exhaustively): title, caption, headline,
   subheadline, section_headline, takeaway_line, analysis_paragraphs[], quote_text, quote_attribution,
-  rhetorical_question, chart_caption, data_points[].label, asset_tag, term, definition, why_it_matters,
-  steps[], col_a_label, col_b_label, rows[].col_a, rows[].col_b, scenario, number_label, narrative,
-  outcome, pillars[].title, pillars[].detail, feature_name, feature_detail, benefits[], and any other
-  text field present.
+  rhetorical_question, chart_caption, data_points[].label, data_points[].value, asset_tag, term,
+  definition, why_it_matters, steps[], col_a_label, col_b_label, rows[].col_a, rows[].col_b, scenario,
+  number_label, narrative, outcome, pillars[].title, pillars[].detail, feature_name, feature_detail,
+  benefits[], and any other text field present.
+- For values that mix numbers with words (e.g. data_points[].value, rows[] cells, featured_number),
+  KEEP the numerals, currency symbols, percentages, and ticker symbols exactly as-is, but TRANSLATE
+  any surrounding words/phrases into {lang_name}. Examples:
+    "Near 2 month high" → translate the words (the "2 month high" phrasing), keep the digit "2".
+    "~$4,310/oz" → keep "~$4,310", translate the unit "/oz" (e.g. "/onça" in pt-BR) if it has a
+    natural local form; otherwise keep it. "10:1" or "$1,000" with no words → keep byte-for-byte.
+  Never leave an English word like "Near", "high", "low", "above", "below", "per" untranslated.
 - Keep these keys UNCHANGED (return their values byte-for-byte, do NOT translate):
-    slide_number, type, direction, background_image_description, chart_type, chart_asset,
-    content_type, data_points[].value, and featured_number (it is a numeric anchor such as "10:1" or "$1,000").
+    slide_number, type, direction, background_image_description, chart_type, chart_asset, content_type.
 - For hashtags: translate the meaning of each hashtag into the target language, keeping them as single lowercase words with no spaces (e.g. "inflation" → "通货膨胀" or "เงินเฟ้อ"). Always keep "wisuno" unchanged.
 - Keep financial abbreviations in English: CPI, Fed, GDP, USD, EUR, CFD, YoY, etc. Keep "wisuno" / "@wisuno" unchanged.
 - Maintain a professional financial tone.
