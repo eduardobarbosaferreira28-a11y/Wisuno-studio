@@ -297,7 +297,6 @@ def _generate_video_blocking(prompt: str, aspect_ratio: str, job_id: str,
         "config": types.GenerateVideosConfig(
             aspect_ratio=aspect_ratio,
             number_of_videos=1,
-            generate_audio=True,
         ),
     }
     if reference_images:
