@@ -96,6 +96,18 @@ const carouselPage = {
       <!-- ── Input card ────────────────────────────────────── -->
       <div class="card" id="carousel-input-card">
 
+        <!-- Daily auto-pick (admin only — shown by onShow) -->
+        <div id="daily-section" style="display:none;">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+            No article handy? Let Wisuno pick today's most market-moving financial story and build a carousel from it — using the options below.
+          </div>
+          <button class="btn btn-secondary" id="btn-daily" style="width:100%;padding:12px;" onclick="carouselPage.generateDaily()">
+            ✨ Generate from today's top story
+          </button>
+          <div id="daily-article" style="display:none;font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;"></div>
+          <div class="divider"></div>
+        </div>
+
         <!-- Input mode tabs -->
         <div class="tabs mb-16">
           <button class="tab active" id="tab-url"  onclick="carouselPage.setMode('url')">🔗 Article URL</button>
@@ -178,18 +190,6 @@ const carouselPage = {
           </svg>
           Generate Carousel
         </button>
-
-        <!-- Daily auto-pick (admin only — shown by onShow) -->
-        <div id="daily-section" style="display:none;">
-          <div class="divider"></div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
-            No article handy? Let Wisuno pick today's most market-moving financial story and build a carousel from it — using the options above.
-          </div>
-          <button class="btn btn-secondary" id="btn-daily" style="width:100%;padding:12px;" onclick="carouselPage.generateDaily()">
-            ✨ Generate from today's top story
-          </button>
-          <div id="daily-article" style="display:none;font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;"></div>
-        </div>
       </div>
 
       <!-- ── Progress card ──────────────────────────────────── -->
