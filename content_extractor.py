@@ -5,6 +5,7 @@ import re
 import httpx
 from bs4 import BeautifulSoup
 from config import MAX_ARTICLE_CHARS, REQUEST_TIMEOUT
+from retry_utils import retry
 
 
 def extract_from_url(url: str) -> str:
@@ -16,9 +17,16 @@ def extract_from_url(url: str) -> str:
             "Chrome/124.0.0.0 Safari/537.36"
         )
     }
+
+    def _fetch() -> httpx.Response:
+        resp = httpx.get(url, headers=headers, timeout=REQUEST_TIMEOUT, follow_redirects=True)
+        resp.raise_for_status()
+        return resp
+
     try:
-        response = httpx.get(url, headers=headers, timeout=REQUEST_TIMEOUT, follow_redirects=True)
-        response.raise_for_status()
+        # Retry only transient network errors; HTTPStatusError (4xx/5xx with a
+        # response) fails fast since a 404/403 won't fix itself on retry.
+        response = retry(_fetch, attempts=3, base_delay=1.0, exceptions=(httpx.RequestError,))
     except httpx.HTTPStatusError as e:
         raise RuntimeError(f"HTTP {e.response.status_code} fetching article: {url}") from e
     except httpx.RequestError as e:

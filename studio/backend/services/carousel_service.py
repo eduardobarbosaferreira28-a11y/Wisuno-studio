@@ -9,11 +9,14 @@ Supports 6 languages: en, zh-TW, zh-CN, th, sw (Kiswahili), pt-BR (Brazilian Por
 from __future__ import annotations
 
 import json
+import logging
 import sys
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 BACKEND_DIR  = Path(__file__).parent.parent
@@ -64,6 +67,7 @@ def _make_job(languages: list[str], user_id: str | None = None) -> dict:
         "current_step": -1,
         "languages": languages,
         "error": None,
+        "warnings": [],        # non-fatal issues (e.g. cloud upload failed)
         "output_dir": None,
         "files": {},           # {lang_code: {carousel, caption, ...}}
         "user_id": user_id,    # owning user (for per-user isolation)
@@ -169,7 +173,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
                 # Don't fail the whole job — continue with no images
                 slide_images = {}
                 job["steps"][2]["note"] = f"⚠ Image generation failed: {img_err}"
-                print(f"[carousel_service] Image generation error (non-fatal): {img_err}")
+                logger.warning("[carousel_service] Image generation error (non-fatal): %s", img_err)
         _step_done(job, 2)
 
         # ── STEP 4 — Translate to selected languages ───────────────────────────
@@ -216,17 +220,30 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
             from services.supabase_client import upload_to_storage
             # build files summary
             file_links = []
+            upload_failed = False
             for lc, f in files.items():
                 public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['carousel_filename']}", f["carousel_path"], "text/html")
                 url_to_use = public_url if public_url else f"/api/carousel/download/{job_id}/{lc}/carousel"
-                
+
                 cap_public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['caption_filename']}", f["caption_path"], "text/plain")
                 cap_url_to_use = cap_public_url if cap_public_url else f"/api/carousel/download/{job_id}/{lc}/caption"
-                
+
+                if not public_url or not cap_public_url:
+                    upload_failed = True
+
                 file_links.append({"lang": lc, "url": url_to_use, "caption_url": cap_url_to_use})
+
+            if upload_failed:
+                # Files exist locally and are still downloadable, but they won't
+                # survive a Railway restart — surface that instead of a clean "done".
+                job["warnings"].append(
+                    "Cloud upload failed for one or more files — available via local download only."
+                )
+                logger.warning("[carousel_service] Job %s: cloud upload incomplete.", job_id)
+
             log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links}, user_id=job.get("user_id"))
         except Exception as e:
-            print(f"[carousel_service] History log failed: {e}")
+            logger.warning("[carousel_service] History log failed: %s", e)
 
     except Exception as exc:
         tb = traceback.format_exc()
@@ -236,7 +253,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         for step in job["steps"]:
             if step["status"] == "running":
                 step["status"] = "error"
-        print(f"[carousel_service] Job {job_id} failed:\n{tb}")
+        logger.error("[carousel_service] Job %s failed:\n%s", job_id, tb)
         
         # Log to history
         try:

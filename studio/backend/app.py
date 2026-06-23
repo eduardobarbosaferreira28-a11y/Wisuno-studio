@@ -23,8 +23,11 @@ for p in (str(BACKEND_DIR), str(PROJECT_ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+from logging_config import configure_logging  # noqa: E402
 from routers import setup as setup_router  # noqa: E402
 from dependencies.auth import get_current_user, user_id_of, email_of, is_admin  # noqa: E402
+
+configure_logging()
 
 # ── App ───────────────────────────────────────────────────────────────────────
 

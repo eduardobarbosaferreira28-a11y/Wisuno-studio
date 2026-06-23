@@ -275,7 +275,7 @@ Reply with ONLY a JSON object — no markdown:
   "rationale": "<one sentence explaining why this is the most impactful for CFD traders>"
 }}"""
 
-        client  = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client  = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=3, timeout=60.0)
         message = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=256,

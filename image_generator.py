@@ -3,13 +3,13 @@ Gemini Imagen wrapper for generating carousel slide images.
 Used for cover background images, quote slide backgrounds, and chart visualizations.
 """
 import base64
-import time
 from pathlib import Path
 
 from google import genai
 from google.genai import types
 
 from config import GEMINI_API_KEY
+from retry_utils import retry
 
 # imagen-4.0 via generate_images API (fast, photorealistic)
 _IMAGEN_MODEL = "imagen-4.0-generate-001"
@@ -49,35 +49,35 @@ def generate_background_image(
     client = _get_client()
     prompt = description.strip().rstrip(".") + "." + _BG_STYLE
 
-    for attempt in range(retries + 1):
-        try:
-            response = client.models.generate_images(
-                model=_IMAGEN_MODEL,
-                prompt=prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio="3:4",
-                    output_mime_type="image/jpeg",
-                ),
-            )
-            image_bytes = response.generated_images[0].image.image_bytes
-            if output_path:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.write_bytes(image_bytes)
-            return image_bytes
-        except Exception as exc:
-            if attempt < retries:
-                time.sleep(3)
-                continue
-            raise RuntimeError(
-                f"Gemini background image generation failed: {exc}"
-            ) from exc
+    def _call() -> bytes:
+        response = client.models.generate_images(
+            model=_IMAGEN_MODEL,
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="3:4",
+                output_mime_type="image/jpeg",
+            ),
+        )
+        image_bytes = response.generated_images[0].image.image_bytes
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(image_bytes)
+        return image_bytes
+
+    try:
+        return retry(_call, attempts=retries + 1, base_delay=3.0)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Gemini background image generation failed: {exc}"
+        ) from exc
 
 
 def generate_chart_image(
     chart_asset: str,
     chart_type: str = "line_chart",
     output_path: Path | None = None,
+    retries: int = 2,
 ) -> bytes:
     """Generate a stylized chart image using Gemini 2.5 Flash Image."""
     client = _get_client()
@@ -88,28 +88,36 @@ def generate_chart_image(
         f"for the data. No text, no labels, no watermarks. Cinematic and clean."
     )
 
-    response = client.models.generate_content(
-        model=_FLASH_IMAGE_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"],
-        ),
-    )
-    image_bytes: bytes | None = None
-    for part in response.candidates[0].content.parts:
-        if part.inline_data:
-            image_bytes = base64.b64decode(
-                base64.b64encode(part.inline_data.data)
-            ) if isinstance(part.inline_data.data, bytes) else part.inline_data.data
-            break
+    def _call() -> bytes:
+        response = client.models.generate_content(
+            model=_FLASH_IMAGE_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+            ),
+        )
+        image_bytes: bytes | None = None
+        for part in response.candidates[0].content.parts:
+            if part.inline_data:
+                image_bytes = base64.b64decode(
+                    base64.b64encode(part.inline_data.data)
+                ) if isinstance(part.inline_data.data, bytes) else part.inline_data.data
+                break
 
-    if not image_bytes:
-        raise RuntimeError("Gemini chart image generation returned no image data.")
+        if not image_bytes:
+            raise RuntimeError("Gemini chart image generation returned no image data.")
 
-    if output_path:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(image_bytes)
-    return image_bytes
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(image_bytes)
+        return image_bytes
+
+    try:
+        return retry(_call, attempts=retries + 1, base_delay=3.0)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Gemini chart image generation failed: {exc}"
+        ) from exc
 
 
 def bytes_to_data_uri(image_bytes: bytes, mime: str = "image/jpeg") -> str:

@@ -63,6 +63,20 @@ from image_generator import (
 )
 from swipeable_carousel import build_swipeable_html
 
+# Resilience knobs for every Anthropic call: the SDK retries transient errors
+# (429/5xx/connection) with backoff, and the timeout caps a single hung request
+# so a slow Claude response can't stall the whole carousel job indefinitely.
+_CLAUDE_MAX_RETRIES = 3
+_CLAUDE_TIMEOUT = 60.0
+
+
+def _anthropic_client() -> "anthropic.Anthropic":
+    return anthropic.Anthropic(
+        api_key=ANTHROPIC_API_KEY,
+        max_retries=_CLAUDE_MAX_RETRIES,
+        timeout=_CLAUDE_TIMEOUT,
+    )
+
 
 # ── Language config ───────────────────────────────────────────────────────────
 
@@ -113,7 +127,7 @@ def _save_caption(script: dict, path: Path) -> None:
 def generate_script(article_text: str, num_slides: int = DEFAULT_SLIDES,
                     content_type: str = "market_insight") -> dict:
     print("\n[2/5] Generating carousel script via Claude...")
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = _anthropic_client()
     prompt = _load_prompt(num_slides, content_type) + f"\n\nARTICLE:\n{article_text}"
 
     message = client.messages.create(
@@ -225,8 +239,8 @@ SCRIPT:
 def translate_script(script: dict, lang_code: str, retries: int = 2) -> dict:
     lang_name = LANGUAGES[lang_code]
     print(f"\n     Translating to {lang_name}...")
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    
+    client = _anthropic_client()
+
     prompt = _TRANSLATE_PROMPT.format(
         lang_name=lang_name,
         script_json=json.dumps(script, ensure_ascii=False, indent=2),
