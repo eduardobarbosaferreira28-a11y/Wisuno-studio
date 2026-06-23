@@ -27,6 +27,17 @@ from services.carousel_service import (
 
 router = APIRouter(prefix="/api/carousel", tags=["carousel"])
 
+_VALID_CONTENT_TYPES = ("market_insight", "market_update", "educational", "promotional")
+
+
+def _normalize_languages(languages: list[str]) -> list[str]:
+    """Drop unknown codes and guarantee English is present and first."""
+    valid = set(ALL_LANGUAGES.keys())
+    langs = [lc for lc in languages if lc in valid]
+    if "en" not in langs:
+        langs.insert(0, "en")   # English always required
+    return langs
+
 
 # ── Request models ────────────────────────────────────────────────────────────
 
@@ -39,11 +50,18 @@ class RunRequest(BaseModel):
     languages:    list[str]  = ["en"]
 
     def validate_languages(self) -> list[str]:
-        valid = set(ALL_LANGUAGES.keys())
-        langs = [lc for lc in self.languages if lc in valid]
-        if "en" not in langs:
-            langs.insert(0, "en")   # English always required
-        return langs
+        return _normalize_languages(self.languages)
+
+
+class DailyRequest(BaseModel):
+    """Auto-pick today's top financial story, then build the carousel from it."""
+    num_slides:   int       = Field(default=6, ge=4, le=8)
+    content_type: str       = "market_insight"
+    skip_images:  bool      = False
+    languages:    list[str] = ["en"]
+
+    def validate_languages(self) -> list[str]:
+        return _normalize_languages(self.languages)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -54,9 +72,7 @@ async def run_carousel(req: RunRequest, user: dict = Depends(get_current_user)):
     if not req.url and not req.text:
         raise HTTPException(400, "Provide either 'url' or 'text'.")
 
-    content_type = req.content_type if req.content_type in (
-        "market_insight", "market_update", "educational", "promotional"
-    ) else "market_insight"
+    content_type = req.content_type if req.content_type in _VALID_CONTENT_TYPES else "market_insight"
 
     languages = req.validate_languages()
 
@@ -70,6 +86,62 @@ async def run_carousel(req: RunRequest, user: dict = Depends(get_current_user)):
         user_id=user_id_of(user),
     )
     return {"job_id": job_id, "languages": languages}
+
+
+def _pick_article_summary(article: dict) -> dict:
+    """Trim a news_picker Article to the fields the UI needs."""
+    return {k: article.get(k) for k in ("title", "url", "source", "score", "rationale")}
+
+
+@router.get("/today")
+async def todays_top_story(user: dict = Depends(get_current_user)):
+    """Preview today's auto-picked top financial story without building anything.
+
+    Mirrors `daily_workflow.py --dry-run`. Admin-only — it spends a Claude call.
+    """
+    if not is_admin(user):
+        raise HTTPException(403, "Admin access required.")
+
+    import asyncio
+    from news_picker import pick_top_article
+
+    # pick_top_article does blocking RSS/yfinance HTTP + a Claude call.
+    article = await asyncio.to_thread(pick_top_article, verbose=False)
+    if not article:
+        raise HTTPException(404, "No suitable article found right now — try again later.")
+    return {"article": _pick_article_summary(article)}
+
+
+@router.post("/daily")
+async def run_daily(req: DailyRequest, user: dict = Depends(get_current_user)):
+    """Auto-pick today's top story, then start a normal carousel job from its URL."""
+    if not is_admin(user):
+        raise HTTPException(403, "Admin access required.")
+
+    import asyncio
+    from news_picker import pick_top_article
+
+    article = await asyncio.to_thread(pick_top_article, verbose=False)
+    if not article:
+        raise HTTPException(404, "No suitable article found right now — try again later.")
+
+    content_type = req.content_type if req.content_type in _VALID_CONTENT_TYPES else "market_insight"
+    languages = req.validate_languages()
+
+    job_id = start_job(
+        url=article["url"],
+        text=None,
+        num_slides=req.num_slides,
+        content_type=content_type,
+        skip_images=req.skip_images,
+        languages=languages,
+        user_id=user_id_of(user),
+    )
+    return {
+        "job_id": job_id,
+        "languages": languages,
+        "article": _pick_article_summary(article),
+    }
 
 
 @router.get("/status/{job_id}")
@@ -100,6 +172,7 @@ async def job_status(job_id: str, user: dict = Depends(get_current_user)):
         "steps":        job["steps"],
         "languages":    job["languages"],
         "error":        job.get("error"),
+        "warnings":     job.get("warnings", []),
         "files":        result_files,
     }
 

@@ -57,7 +57,10 @@ const carouselPage = {
   },
 
   onShow() {
-    // called by app.js router when tab is opened
+    // The daily auto-pick spends a Claude call, so it's admin-only (matches the
+    // backend gate on /api/carousel/daily). Reveal it once the role is known.
+    const daily = document.getElementById('daily-section');
+    if (daily) daily.style.display = (app.isAdmin === true) ? '' : 'none';
   },
 
   /* ── HTML Template ──────────────────────────────────────────────────────── */
@@ -175,6 +178,18 @@ const carouselPage = {
           </svg>
           Generate Carousel
         </button>
+
+        <!-- Daily auto-pick (admin only — shown by onShow) -->
+        <div id="daily-section" style="display:none;">
+          <div class="divider"></div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+            No article handy? Let Wisuno pick today's most market-moving financial story and build a carousel from it — using the options above.
+          </div>
+          <button class="btn btn-secondary" id="btn-daily" style="width:100%;padding:12px;" onclick="carouselPage.generateDaily()">
+            ✨ Generate from today's top story
+          </button>
+          <div id="daily-article" style="display:none;font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;"></div>
+        </div>
       </div>
 
       <!-- ── Progress card ──────────────────────────────────── -->
@@ -299,6 +314,47 @@ const carouselPage = {
     } catch {
       this._showCard('input');
       if (btn) { btn.disabled = false; btn.textContent = 'Generate Carousel'; }
+    }
+  },
+
+  /* ── Daily auto-pick ───────────────────────────────────────────────────── */
+
+  async generateDaily() {
+    const langs = [...state.languages];
+    const btn = document.getElementById('btn-daily');
+    if (btn) { btn.disabled = true; btn.textContent = '🔎 Finding today\'s top story…'; }
+    toast.info('Scanning financial headlines and picking the top story…');
+
+    try {
+      const result = await apiFetch('/api/carousel/daily', {
+        method: 'POST',
+        body: JSON.stringify({
+          num_slides:   state.numSlides,
+          content_type: state.contentType,
+          skip_images:  state.skipImages,
+          languages:    langs,
+        }),
+      });
+
+      state.jobId = result.job_id;
+
+      // Surface what was picked, then run the same progress UI as a manual job.
+      const a = result.article || {};
+      this._showCard('progress');
+      this._resetSteps();
+      const info = document.getElementById('daily-article');
+      if (info && a.title) {
+        info.style.display = '';
+        info.innerHTML = `📰 <strong>${a.title}</strong><br>${a.source || ''}` +
+          (a.rationale ? `<br><em>${a.rationale}</em>` : '');
+      }
+      toast.success(`Picked: ${a.title || 'top story'} — generating…`);
+      this._startPolling();
+
+    } catch {
+      // apiFetch already toasts the error (e.g. 404 no article, 403 not admin).
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '✨ Generate from today\'s top story'; }
     }
   },
 
