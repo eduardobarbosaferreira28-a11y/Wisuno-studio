@@ -29,6 +29,10 @@ router = APIRouter(prefix="/api/carousel", tags=["carousel"])
 
 _VALID_CONTENT_TYPES = ("market_insight", "market_update", "educational", "promotional")
 
+# The "today's top story" feature must only surface genuinely recent news:
+# at most 2 days old, and only articles whose publish date we can confirm.
+_DAILY_MAX_AGE_HOURS = 48
+
 
 def _normalize_languages(languages: list[str]) -> list[str]:
     """Drop unknown codes and guarantee English is present and first."""
@@ -106,7 +110,10 @@ async def todays_top_story(user: dict = Depends(get_current_user)):
     from news_picker import pick_top_article
 
     # pick_top_article does blocking RSS/yfinance HTTP + a Claude call.
-    article = await asyncio.to_thread(pick_top_article, verbose=False)
+    article = await asyncio.to_thread(
+        pick_top_article, verbose=False,
+        max_age_hours=_DAILY_MAX_AGE_HOURS, require_dated=True,
+    )
     if not article:
         raise HTTPException(404, "No suitable article found right now — try again later.")
     return {"article": _pick_article_summary(article)}
@@ -121,7 +128,10 @@ async def run_daily(req: DailyRequest, user: dict = Depends(get_current_user)):
     import asyncio
     from news_picker import pick_top_article
 
-    article = await asyncio.to_thread(pick_top_article, verbose=False)
+    article = await asyncio.to_thread(
+        pick_top_article, verbose=False,
+        max_age_hours=_DAILY_MAX_AGE_HOURS, require_dated=True,
+    )
     if not article:
         raise HTTPException(404, "No suitable article found right now — try again later.")
 

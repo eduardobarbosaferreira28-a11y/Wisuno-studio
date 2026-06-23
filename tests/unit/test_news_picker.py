@@ -31,6 +31,34 @@ def test_score_discards_stale_articles():
     assert np._score(old) == -1
 
 
+def test_score_respects_custom_max_age_window():
+    # 30h old: discarded under the default 20h window, kept under a 48h window.
+    art = _recent(published=datetime.now(timezone.utc) - timedelta(hours=30),
+                  title="Fed rate cut")
+    assert np._score(art) == -1
+    assert np._score(art, max_age_hours=48) > 0
+
+
+def test_score_rejects_article_older_than_two_days_even_with_wide_window():
+    art = _recent(published=datetime.now(timezone.utc) - timedelta(hours=60),
+                  title="Fed rate cut")
+    assert np._score(art, max_age_hours=48, require_dated=True) == -1
+
+
+def test_require_dated_discards_undated_article():
+    undated = _recent(title="Fed rate cut", published=None)
+    # Without require_dated the article is still scorable on keywords...
+    assert np._score(undated) > 0
+    # ...but the daily feature insists on a confirmable date.
+    assert np._score(undated, max_age_hours=48, require_dated=True) == -1
+
+
+def test_require_dated_keeps_recent_dated_article():
+    fresh = _recent(published=datetime.now(timezone.utc) - timedelta(hours=10),
+                    title="Fed rate cut")
+    assert np._score(fresh, max_age_hours=48, require_dated=True) > 0
+
+
 # ── _deduplicate ──────────────────────────────────────────────────────────────
 
 def test_deduplicate_removes_same_title_prefix():

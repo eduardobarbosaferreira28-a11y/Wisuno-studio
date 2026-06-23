@@ -179,7 +179,8 @@ def fetch_yfinance_articles() -> list[dict]:
 
 # ── Scoring ───────────────────────────────────────────────────────────────────
 
-def _score(article: dict) -> int:
+def _score(article: dict, max_age_hours: int = MAX_AGE_HOURS,
+           require_dated: bool = False) -> int:
     title_lower = article["title"].lower()
     score = 0
 
@@ -187,12 +188,14 @@ def _score(article: dict) -> int:
         if kw in title_lower:
             score += weight
 
-    # Recency bonus
+    # Recency: discard anything older than max_age_hours. When require_dated is
+    # True we ALSO discard articles whose publish date can't be parsed — without
+    # a date we can't guarantee the article falls inside the window.
     pub_dt: datetime | None = article.get("published")
     if isinstance(pub_dt, datetime):
         try:
             age_h = (datetime.now(timezone.utc) - pub_dt).total_seconds() / 3600
-            if age_h > MAX_AGE_HOURS:
+            if age_h > max_age_hours:
                 return -1          # too old — discard
             if age_h < 1:
                 score += 6
@@ -201,7 +204,10 @@ def _score(article: dict) -> int:
             elif age_h < 6:
                 score += 2
         except Exception:
-            pass
+            if require_dated:
+                return -1
+    elif require_dated:
+        return -1                  # no usable date — can't confirm recency
 
     return score
 
@@ -296,10 +302,17 @@ Reply with ONLY a JSON object — no markdown:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def pick_top_article(top_n: int = 10, verbose: bool = True) -> Article | None:
+def pick_top_article(top_n: int = 10, verbose: bool = True,
+                     max_age_hours: int = MAX_AGE_HOURS,
+                     require_dated: bool = False) -> Article | None:
     """
     Fetch headlines from all sources, score them, and use Claude to pick
     the single most impactful article.
+
+    Args:
+        max_age_hours: Discard articles older than this (recency window).
+        require_dated: If True, also discard articles whose publish date can't be
+                       parsed — guarantees every candidate is within the window.
 
     Returns an Article dict with keys: title, url, source, published, score, rationale
     Returns None if no suitable articles are found.
@@ -320,7 +333,7 @@ def pick_top_article(top_n: int = 10, verbose: bool = True) -> Article | None:
     for a in all_articles:
         if _is_blocked(a.get("url", "")):
             continue
-        s = _score(a)
+        s = _score(a, max_age_hours=max_age_hours, require_dated=require_dated)
         if s > 0:
             a["score"] = s
             scored.append(a)
