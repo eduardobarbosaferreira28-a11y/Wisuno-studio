@@ -101,6 +101,16 @@ def _build_caption_html(lines: list[list[dict]], duration: float) -> str:
             tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{ORANGE}"}}, {start:.3f});')
             tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{TEXT}"}}, {end:.3f});')
 
+    # Pin the timeline's total length to the full composition duration. The last
+    # word ends before the clip does, so without this the GSAP timeline is
+    # shorter than `data-duration`. HyperFrames builds that seek the timeline by
+    # progress (0..1) instead of absolute seconds then stretch every cue across
+    # the whole clip — captions play progressively slower, drifting behind the
+    # speaker more and more toward the end. A no-op keyframe at `duration` forces
+    # timeline.duration() == data-duration so progress maps 1:1 to real seconds.
+    # (Harmless under absolute-seconds seeking: it sets an already-true value.)
+    tl_lines.append(f'  tl.set("#stage", {{opacity:1}}, {duration:.3f});')
+
     caps_html = "\n".join(cap_divs)
     tl_js = "\n".join(tl_lines)
 

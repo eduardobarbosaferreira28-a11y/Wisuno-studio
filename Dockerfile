@@ -32,8 +32,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install hyperframes globally
-RUN npm install -g hyperframes
+# Install hyperframes globally — PINNED. An unpinned install pulls whatever is
+# latest at build time; a newer build that seeks GSAP timelines by progress
+# (instead of absolute seconds) stretches the karaoke captions across the whole
+# clip, so they drift slower and slower behind the speaker. 0.7.18 is verified
+# to seek by absolute seconds. Bump deliberately, never accidentally.
+RUN npm install -g hyperframes@0.7.18
 
 # Fix ImageMagick policy to allow text/rendering if needed (common moviepy issue)
 # (In debian 11+, ImageMagick disables some ghostscript fonts/paths by default. We remove the policy file if it exists)
