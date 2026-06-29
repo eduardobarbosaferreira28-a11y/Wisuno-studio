@@ -21,8 +21,10 @@ Usage:
 
 from __future__ import annotations
 
+import base64
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from typing import TypedDict
@@ -222,17 +224,6 @@ def _is_blocked(url: str) -> bool:
         return False
 
 
-def _is_fetchable(url: str, timeout: int = 10) -> bool:
-    """Return True if the URL responds with a 2xx status (HEAD request)."""
-    try:
-        resp = requests.head(
-            url, headers=HEADERS, timeout=timeout, allow_redirects=True
-        )
-        return resp.status_code < 400
-    except Exception:
-        return False
-
-
 def _deduplicate(articles: list[dict]) -> list[dict]:
     seen: set[str] = set()
     unique: list[dict] = []
@@ -242,6 +233,134 @@ def _deduplicate(articles: list[dict]) -> list[dict]:
             seen.add(key)
             unique.append(a)
     return unique
+
+
+# ── Google News URL resolution ────────────────────────────────────────────────
+# Google News RSS `link` values are redirect *wrappers* (news.google.com/rss/
+# articles/CBMi…), not the publisher's article. A HEAD request to the wrapper
+# returns 200, so the old fetchability check passed — but actually fetching it
+# yields a Google interstitial page full of *other* headlines, which then got
+# turned into an off-topic carousel. We must resolve the real publisher URL.
+
+def _decode_gnews_base64(url: str) -> str | None:
+    """Older-format Google News links embed the target URL in the base64 article
+    id. Decode it and pull the publisher URL out of the protobuf payload."""
+    m = re.search(r"/articles/([A-Za-z0-9_\-]+)", url)
+    if not m:
+        return None
+    blob = m.group(1)
+    blob += "=" * (-len(blob) % 4)          # restore base64 padding
+    try:
+        raw = base64.urlsafe_b64decode(blob)
+    except Exception:
+        return None
+    text = raw.decode("latin-1", errors="ignore")
+    # URL chars only — stops at the next (control-byte) protobuf field tag.
+    found = re.search(r"https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\-]+", text)
+    if not found:
+        return None
+    target = found.group(0)
+    if "google.com" in target or "gstatic.com" in target:
+        return None
+    return target
+
+
+def _scrape_gnews_target(url: str, timeout: int = 10) -> str | None:
+    """Fetch the wrapper page and recover the real article URL from it."""
+    from urllib.parse import urlparse
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+    except Exception:
+        return None
+    # If Google bounced us straight to the publisher, the final URL is the article.
+    if "news.google.com" not in urlparse(resp.url).netloc.lower():
+        return resp.url
+    html = resp.text
+    # data-n-au carries the canonical target on the article shell.
+    m = re.search(r'data-n-au="(https?://[^"]+)"', html)
+    if m:
+        return m.group(1)
+    # <meta http-equiv="refresh" ... url=…>
+    m = re.search(r'http-equiv=["\']refresh["\'][^>]*url=(https?://[^"\'>\s]+)', html, re.I)
+    if m and "google.com" not in m.group(1):
+        return m.group(1)
+    # First anchor that points off Google.
+    for mm in re.finditer(r'href="(https?://[^"]+)"', html):
+        host = urlparse(mm.group(1)).netloc.lower()
+        if not any(d in host for d in ("google.com", "gstatic.com", "youtube.com", "google.co")):
+            return mm.group(1)
+    return None
+
+
+def _resolve_google_news_url(url: str, timeout: int = 10) -> str | None:
+    """Return the real publisher URL for a Google News wrapper link, or the URL
+    unchanged if it isn't a Google News link. Returns None if unresolvable."""
+    from urllib.parse import urlparse
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return url
+    if "news.google.com" not in host:
+        return url                      # already a real publisher URL
+    return _decode_gnews_base64(url) or _scrape_gnews_target(url, timeout)
+
+
+# ── Headline ⇄ body relevance guard ───────────────────────────────────────────
+# Even after resolving, the fetched page might be a consent wall, a paywall stub,
+# or the wrong article. Confirm the extracted body actually matches the chosen
+# headline before we spend the image/translation budget building a carousel.
+
+_RELEVANCE_STOPWORDS: set[str] = {
+    "the", "and", "for", "with", "that", "this", "from", "says", "said", "after",
+    "over", "into", "amid", "will", "your", "you", "are", "but", "not", "how",
+    "why", "what", "when", "who", "its", "has", "have", "was", "were", "been",
+    "more", "than", "new", "now", "top", "day", "week", "year", "could", "would",
+    "may", "amid", "set", "out", "off", "his", "her", "their", "them", "they",
+}
+
+
+def _headline_keywords(title: str) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", title.lower())
+    return {w for w in words if len(w) >= 3 and w not in _RELEVANCE_STOPWORDS}
+
+
+def _body_matches_headline(title: str, body: str, min_ratio: float = 0.4) -> bool:
+    """True if at least `min_ratio` of the headline's significant words appear in
+    the article body. Empty keyword sets pass (we can't judge — don't block)."""
+    kws = _headline_keywords(title)
+    if not kws:
+        return True
+    body_l = body.lower()
+    hits = sum(1 for k in kws if k in body_l)
+    return hits / len(kws) >= min_ratio
+
+
+def _resolve_and_validate(candidate: dict, timeout: int = 10,
+                          verbose: bool = True) -> str | None:
+    """Resolve a candidate's URL to the real article and confirm the fetched body
+    matches its headline. Returns the resolved publisher URL, or None to skip."""
+    from content_extractor import extract_from_url
+
+    resolved = _resolve_google_news_url(candidate["url"], timeout=timeout)
+    if not resolved:
+        if verbose:
+            print("  [news_picker] ✗ could not resolve Google News redirect — skipping")
+        return None
+    try:
+        body = extract_from_url(resolved)
+    except Exception as exc:
+        if verbose:
+            print(f"  [news_picker] ✗ fetch failed for {resolved[:70]}…: {exc}")
+        return None
+    if len(body) < 400:
+        if verbose:
+            print(f"  [news_picker] ✗ body too thin ({len(body)} chars) — skipping")
+        return None
+    if not _body_matches_headline(candidate["title"], body):
+        if verbose:
+            print("  [news_picker] ✗ article body doesn't match the headline — skipping")
+        return None
+    return resolved
 
 
 # ── Claude final selection ────────────────────────────────────────────────────
@@ -353,21 +472,23 @@ def pick_top_article(top_n: int = 10, verbose: bool = True,
     print("  [news_picker] Asking Claude to select the best article…")
     winner = _claude_pick(candidates)
 
-    # Validate the winner is actually fetchable; if not, walk down the list
+    # Resolve each candidate's real publisher URL (Google News links are
+    # redirect wrappers) and confirm the fetched body actually matches the
+    # headline before committing. Walk down the list until one passes; this
+    # guarantees we build the *chosen* story or nothing — never an off-topic one.
     ordered = [winner] + [c for c in candidates if c["url"] != winner["url"]]
     final: dict | None = None
     for candidate in ordered:
-        url = candidate["url"]
         if verbose:
-            print(f"  [news_picker] Checking URL accessibility: {url[:80]}")
-        if _is_fetchable(url):
+            print(f"  [news_picker] Resolving & validating: {candidate['url'][:80]}")
+        resolved = _resolve_and_validate(candidate, verbose=verbose)
+        if resolved:
+            candidate["url"] = resolved   # hand the real article URL downstream
             final = candidate
             break
-        else:
-            print(f"  [news_picker] ✗ URL not fetchable, trying next candidate…")
 
     if final is None:
-        print("  [news_picker] No fetchable article found among top candidates.")
+        print("  [news_picker] No valid, on-topic article found among top candidates.")
         return None
 
     if verbose:

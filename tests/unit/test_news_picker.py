@@ -1,4 +1,5 @@
 """Unit tests for news_picker scoring/filtering (pure functions, no network)."""
+import base64
 from datetime import datetime, timedelta, timezone
 
 import news_picker as np
@@ -81,3 +82,47 @@ def test_is_blocked_matches_domain_and_subdomain():
 
 def test_is_blocked_allows_unlisted_domain():
     assert not np._is_blocked("https://news.google.com/rss/articles/x")
+
+
+# ── Google News URL resolution ────────────────────────────────────────────────
+
+def test_resolve_passes_through_non_google_url():
+    url = "https://www.reuters.com/markets/fed-rate-cut"
+    assert np._resolve_google_news_url(url) == url
+
+
+def test_decode_gnews_base64_extracts_publisher_url():
+    target = "https://www.reuters.com/markets/us/fed-holds-rates-2026-06-29"
+    # Mimic the protobuf payload: a field tag, the URL, then a control byte that
+    # terminates the URL match — exactly what the real decoder must stop on.
+    payload = b'\x08\x13\x22' + bytes([len(target)]) + target.encode() + b'\x1a\x04abcd'
+    blob = base64.urlsafe_b64encode(payload).decode().rstrip("=")
+    url = f"https://news.google.com/rss/articles/{blob}?oc=5"
+    assert np._decode_gnews_base64(url) == target
+
+
+def test_decode_gnews_base64_rejects_google_self_link():
+    payload = b'\x08\x13\x22' + b"https://news.google.com/foo"
+    blob = base64.urlsafe_b64encode(payload).decode().rstrip("=")
+    url = f"https://news.google.com/rss/articles/{blob}"
+    assert np._decode_gnews_base64(url) is None
+
+
+# ── Headline ⇄ body relevance guard ───────────────────────────────────────────
+
+def test_body_matches_headline_accepts_on_topic_body():
+    title = "Fed signals a rate cut as inflation cools"
+    body = "The Federal Reserve signals a possible rate cut after inflation data cooled."
+    assert np._body_matches_headline(title, body)
+
+
+def test_body_matches_headline_rejects_off_topic_body():
+    title = "Fed signals a rate cut as inflation cools"
+    body = "SoftBank dethrones Toyota to become Japan's most valuable company on AI bets."
+    assert not np._body_matches_headline(title, body)
+
+
+def test_headline_keywords_keeps_short_finance_terms_drops_stopwords():
+    kws = np._headline_keywords("The Fed and the ECB will act")
+    assert "fed" in kws and "ecb" in kws and "act" in kws
+    assert "the" not in kws and "and" not in kws and "will" not in kws
