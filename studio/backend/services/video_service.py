@@ -264,6 +264,10 @@ def _run_render(
         cuts          = job["approved_cuts"]
         probe         = job.get("probe") or {}
         vid_fps       = int(probe.get("fps") or 30)
+        # Exact (unrounded) source rate. Captions/slides snap their output-timeline
+        # math to this same frame grid as the extracted base video, so they stay
+        # locked to the speaker instead of drifting later as the edit progresses.
+        fps_exact     = float(probe.get("fps_exact") or 0.0)
         job["status"] = "rendering"
 
         _step_start(job, 5)
@@ -294,8 +298,12 @@ def _run_render(
         edl_path.write_text(json.dumps(edl, indent=2))
         job["edl_path"] = str(edl_path)
 
-        # Calculate edit duration (sum of approved cut durations)
-        edit_duration = sum(float(c["end"]) - float(c["start"]) for c in cuts)
+        # Calculate edit duration (sum of approved cut durations). Snap each cut
+        # to a whole frame so this total matches the frame-locked base video that
+        # extract_segment renders — keeps overlays/music aligned to the real edit.
+        def _snap(d: float) -> float:
+            return round(d * fps_exact) / fps_exact if fps_exact > 0 else d
+        edit_duration = sum(_snap(float(c["end"]) - float(c["start"])) for c in cuts)
 
         # ── B: Build karaoke ASS subtitles ─────────────────────────────────────
         job["steps"][5]["note"] = "[2/8] Building karaoke subtitles…"
@@ -314,6 +322,7 @@ def _run_render(
             slide_windows=[],   # filled in after graphic slides are placed
             output_path=ass_path,
             edit_duration_s=edit_duration,
+            fps=fps_exact,
         )
 
         # ── C: Extract graded segments + concat → base.mp4 ────────────────────
@@ -351,6 +360,7 @@ def _run_render(
                     edit_dir=edit_dir,
                     anthropic_api_key=ANTHROPIC_API_KEY,
                     anthropic_model=ANTHROPIC_MODEL,
+                    fps=fps_exact,
                 )
                 for so in slide_overlays:
                     overlays.append({
@@ -370,6 +380,7 @@ def _run_render(
                     slide_windows=slide_windows,
                     output_path=ass_path,
                     edit_duration_s=edit_duration,
+                    fps=fps_exact,
                 )
                 # We will render captions next using exact timestamps
             except Exception as gfx_err:
@@ -384,7 +395,7 @@ def _run_render(
 
         def _do_captions():
             if transcript_json.exists():
-                return build_caption_overlay(transcript_json, cuts, slide_windows, edit_dir, edit_duration)
+                return build_caption_overlay(transcript_json, cuts, slide_windows, edit_dir, edit_duration, fps=fps_exact)
             return None
 
         def _do_disclaimer():
@@ -671,17 +682,20 @@ def _probe_video(vpath: Path) -> dict:
     fps_raw = stream.get("r_frame_rate", "0/1")
     try:
         num, den = fps_raw.split("/")
-        fps = round(int(num) / int(den), 2)
+        fps_exact = int(num) / int(den)
+        fps = round(fps_exact, 2)
     except Exception:
+        fps_exact = 0.0
         fps = 0
 
     return {
-        "width":    stream.get("width"),
-        "height":   stream.get("height"),
-        "fps":      fps,
-        "codec":    stream.get("codec_name"),
-        "duration": float(fmt.get("duration", 0)),
-        "size_mb":  round(int(fmt.get("size", 0)) / (1024 * 1024), 1),
+        "width":     stream.get("width"),
+        "height":    stream.get("height"),
+        "fps":       fps,
+        "fps_exact": fps_exact,   # unrounded rate — used to frame-lock A/V & captions
+        "codec":     stream.get("codec_name"),
+        "duration":  float(fmt.get("duration", 0)),
+        "size_mb":   round(int(fmt.get("size", 0)) / (1024 * 1024), 1),
     }
 
 

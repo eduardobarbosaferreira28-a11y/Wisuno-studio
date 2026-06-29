@@ -54,12 +54,25 @@ def _ts(secs: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+def _snap_dur(duration: float, fps: float | None) -> float:
+    """Round a cut duration to the nearest whole frame at `fps`.
+
+    Must match render.snap_duration_to_frame so the caption output-timeline
+    lines up exactly with the frame-locked base video the captions are drawn on.
+    Pass fps=None to disable (legacy callers/tests) — leaves timings unchanged.
+    """
+    if not fps or fps <= 0:
+        return duration
+    return round(duration * fps) / fps
+
+
 def build_karaoke_ass(
     transcript_json: Path,
     ranges: list[dict],
     slide_windows: list[tuple[float, float]],
     output_path: Path,
     edit_duration_s: float,
+    fps: float | None = None,
 ) -> list[list[dict]]:
     """Generate master.ass from Scribe transcript + EDL ranges, and return structured lines."""
     # Load word-level transcript
@@ -123,7 +136,7 @@ def build_karaoke_ass(
                 "end":   out_end,
             })
 
-        accumulated += dur
+        accumulated += _snap_dur(dur, fps)
 
     # Filter out words that fall inside a graphic slide window
     def _in_slide(t: float) -> bool:

@@ -45,6 +45,7 @@ def build_caption_overlay(
     slide_windows: list[tuple[float, float]],
     edit_dir: Path,
     edit_duration_s: float,
+    fps: float | None = None,
 ) -> Path:
     """
     Build HyperFrames HTML caption overlay with exact sync -> render overlay.mov
@@ -59,7 +60,7 @@ def build_caption_overlay(
 
     # We need to compute lines using the exact timing logic from karaoke
     ass_path = edit_dir / "master.ass"
-    lines = build_karaoke_ass(transcript_json, ranges, slide_windows, ass_path, edit_duration_s)
+    lines = build_karaoke_ass(transcript_json, ranges, slide_windows, ass_path, edit_duration_s, fps=fps)
 
     # Generate the HTML using the exact word timestamps
     html = _build_caption_html(lines, edit_duration_s)
@@ -148,6 +149,7 @@ def build_graphic_slides(
     edit_dir: Path,
     anthropic_api_key: str,
     anthropic_model: str,
+    fps: float | None = None,
 ) -> list[dict]:
     """
     Ask Claude to extract 3 topic slides from the transcript,
@@ -158,7 +160,7 @@ def build_graphic_slides(
     from helpers.hf_render import render_hyperframes
 
     # Calculate output timestamps for words in transcript
-    word_output_times = _build_word_output_times(transcript_json, ranges)
+    word_output_times = _build_word_output_times(transcript_json, ranges, fps)
 
     client = anthropic.Anthropic(api_key=anthropic_api_key)
     resp = client.messages.create(
@@ -254,12 +256,17 @@ For Variant B use:
     return overlays
 
 
-def _build_word_output_times(transcript_json: Path, ranges: list[dict]) -> list[dict]:
-    """Return list of {text, output_time} for every word in the EDL ranges."""
+def _build_word_output_times(transcript_json: Path, ranges: list[dict], fps: float | None = None) -> list[dict]:
+    """Return list of {text, output_time} for every word in the EDL ranges.
+
+    Snaps each segment's duration to a whole frame (matching the extracted base
+    video) so graphic-slide trigger times stay aligned as the edit progresses.
+    """
     data  = json.loads(transcript_json.read_text(encoding="utf-8"))
     words = [w for w in data.get("words", []) if w.get("type") == "word"]
     result = []
     accumulated = 0.0
+    snap = (lambda d: round(d * fps) / fps) if (fps and fps > 0) else (lambda d: d)
     for rng in ranges:
         r_start, r_end = float(rng["start"]), float(rng["end"])
         for w in words:
@@ -269,7 +276,7 @@ def _build_word_output_times(transcript_json: Path, ranges: list[dict]) -> list[
                     "text":        w["text"].lower().strip(".,!?;:\"'"),
                     "output_time": accumulated + (ws - r_start),
                 })
-        accumulated += r_end - r_start
+        accumulated += snap(r_end - r_start)
     return result
 
 

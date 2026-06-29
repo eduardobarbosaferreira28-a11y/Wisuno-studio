@@ -29,6 +29,7 @@ import shutil
 import concurrent.futures
 import argparse
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 try:
@@ -149,6 +150,44 @@ def is_portrait_source(video: Path) -> bool:
         return False
 
 
+def probe_fps(video: Path) -> Fraction:
+    """Return the source's exact frame rate as a Fraction (e.g. 24000/1001).
+
+    Critical for A/V sync: forcing a rounded rate (e.g. -r 24 on 23.976 fps
+    footage) makes each cut's video track a hair longer than its audio. Across a
+    lossless concat those per-segment errors accumulate, so by the end of the
+    edit the video (and the karaoke captions baked onto it) drift seconds behind
+    the speaker's voice. We snap every cut to a whole frame of the *real* rate
+    instead. Falls back to 24000/1001 (NTSC 24) if the probe fails.
+    """
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=r_frame_rate",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(video)],
+            capture_output=True, text=True, check=True,
+        )
+        val = out.stdout.strip()
+        f = Fraction(val) if val and val != "0/0" else Fraction(0)
+        return f if f > 0 else Fraction(24000, 1001)
+    except Exception:
+        return Fraction(24000, 1001)
+
+
+def snap_duration_to_frame(duration: float, fps: Fraction | float) -> float:
+    """Round a cut duration to the nearest whole video frame at `fps`.
+
+    Both the extracted segment (`extract_segment`) and the output-timeline math
+    used to position captions/slides MUST snap identically, so the rendered base
+    video, its audio, and the caption timeline all share one frame-locked clock.
+    """
+    fps = Fraction(fps) if not isinstance(fps, Fraction) else fps
+    if fps <= 0:
+        return duration
+    nframes = max(1, round(duration * fps))
+    return float(Fraction(nframes) / fps)
+
+
 # -------- Per-segment extraction (Rule 2 + Rule 3) --------------------------
 
 
@@ -187,9 +226,20 @@ def extract_segment(
         vf_parts.append(grade_filter)
     vf = ",".join(vf_parts)
 
-    # 30ms audio fades at both edges (Rule 3) — prevent pops
-    fade_out_start = max(0.0, duration - 0.03)
-    af = f"afade=t=in:st=0:d=0.03,afade=t=out:st={fade_out_start:.3f}:d=0.03"
+    # Lock the cut to a whole frame of the source's *real* rate so the segment's
+    # video and audio tracks come out the same length. Forcing a mismatched CFR
+    # (the old "-r 24" on 23.976 fps footage) left each clip's video a frame
+    # longer than its audio; concatenated, that error accumulated until the
+    # captions baked onto the video lagged the speaker by a noticeable amount.
+    fps = probe_fps(source)
+    nframes = max(1, round(duration * fps))
+    duration_exact = float(Fraction(nframes) / fps)
+    rate_arg = f"{fps.numerator}/{fps.denominator}"
+
+    # 30ms audio fades at both edges (Rule 3) — prevent pops. `apad` + `-shortest`
+    # pads the audio to exactly the frame-locked video length so A/V stay matched.
+    fade_out_start = max(0.0, duration_exact - 0.03)
+    af = f"afade=t=in:st=0:d=0.03,afade=t=out:st={fade_out_start:.3f}:d=0.03,apad"
 
     if draft:
         preset, crf = "ultrafast", "28"
@@ -203,12 +253,14 @@ def extract_segment(
         "-analyzeduration", "5000000", "-probesize", "5000000",
         "-ss", f"{seg_start:.3f}",
         "-i", str(source),
-        "-t", f"{duration:.3f}",
+        "-t", f"{duration_exact:.6f}",
         "-vf", vf,
         "-af", af,
         "-c:v", "libx264", "-preset", preset, "-crf", crf,
-        "-pix_fmt", "yuv420p", "-r", "24",
+        "-pix_fmt", "yuv420p",
+        "-fps_mode", "cfr", "-r", rate_arg, "-frames:v", str(nframes),
         "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+        "-shortest",
         "-max_muxing_queue_size", "512",
         "-movflags", "+faststart",
         str(out_path),
