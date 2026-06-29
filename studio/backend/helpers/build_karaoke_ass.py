@@ -95,34 +95,32 @@ def build_karaoke_ass(
             if ws >= r_start and ws < r_end:
                 range_words.append(w)
                 
-        # Check if user manually modified the caption quote
+        # Optionally swap caption text from the cut's `quote` field — but ALWAYS
+        # keep the transcript's real per-word timings. The `quote` is Claude's
+        # approximation of the cut (auto pipeline) and its word count routinely
+        # differs from the transcript. The old code treated any word-count
+        # mismatch as a manual edit and spread the words EVENLY across the cut,
+        # which discards the real timing and makes the karaoke drift further and
+        # further behind the speaker as the clip goes on. We never do that now:
+        # the transcript is the source of truth for timing, and we only swap text
+        # when it lines up 1:1 with the transcript words.
         user_quote = rng.get("quote", "").strip()
         orig_text = " ".join(w["text"] for w in range_words)
-        
+
         if user_quote:
             import string
             def clean(s): return s.translate(str.maketrans('', '', string.punctuation)).lower().split()
-            
+
             user_words = user_quote.split()
             user_clean = clean(user_quote)
             orig_clean = clean(orig_text)
-            
-            if user_clean != orig_clean and len(user_words) > 0:
-                # User edited the caption!
-                if len(user_words) == len(range_words):
-                    # Same word count: preserve original ElevenLabs timings exactly
-                    for i in range(len(range_words)):
-                        range_words[i] = {**range_words[i], "text": user_words[i]}
-                else:
-                    # Different word count: distribute evenly across the cut duration
-                    step = dur / len(user_words)
-                    range_words = []
-                    for i, text in enumerate(user_words):
-                        range_words.append({
-                            "text": text,
-                            "start": r_start + (i * step),
-                            "end": r_start + ((i + 1) * step)
-                        })
+
+            if user_clean != orig_clean and len(user_words) == len(range_words):
+                # Same word count: swap the visible text, keep exact timings.
+                for i in range(len(range_words)):
+                    range_words[i] = {**range_words[i], "text": user_words[i]}
+            # Different word count: ignore the quote and keep the transcript words
+            # and their real timings (no even-distribution — that was the drift bug).
         
         # Remap to output timeline
         for w in range_words:
