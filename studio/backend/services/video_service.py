@@ -52,11 +52,12 @@ from services.history_service import log_job
 
 VIDEO_OUTPUT_ROOT = PROJECT_ROOT / "output" / "video"
 
-# Portrait crop constants (calibrated for the Wisuno camera setup)
-PORTRAIT_CROP_W  = 1215
-PORTRAIT_CROP_H  = 2160
-PORTRAIT_CROP_X  = 1312   # x offset – centres the speaker
-PORTRAIT_CROP_Y  = 0
+# Portrait crop output (1080×1920, 9:16). The crop window itself is computed
+# per-source by _compute_portrait_crop(): the largest centred 9:16 window that
+# fits the input, which keeps the speaker centred on any resolution. For the
+# 3840×2160 Wisuno studio footage this reproduces the old fixed crop exactly
+# (a centred 1215×2160 window at x≈1312), while no longer crashing on other
+# resolutions the way the previous hard-coded 1215:2160:1312:0 crop did.
 PORTRAIT_OUT_W   = 1080
 PORTRAIT_OUT_H   = 1920
 
@@ -173,7 +174,10 @@ def _run_analysis(job_id: str, video_path: str):
         _step_start(job, 0)
         probe = _probe_video(vpath)
         job["probe"] = probe
-        w, h = probe.get("width", 0), probe.get("height", 0)
+        w, h = probe.get("width") or 0, probe.get("height") or 0
+        print(f"[video_service] Analysis {job_id} source {vpath.name}: "
+              f"{w}×{h} {probe.get('codec','?')} {probe.get('fps','?')}fps "
+              f"{probe.get('duration',0):.1f}s {probe.get('size_mb','?')}MB")
 
         # If already portrait (1080×1920), skip crop
         if w == PORTRAIT_OUT_W and h == PORTRAIT_OUT_H:
@@ -182,7 +186,7 @@ def _run_analysis(job_id: str, video_path: str):
         else:
             portrait_path = edit_dir / f"{vpath.stem}_portrait.mp4"
             if not portrait_path.exists():
-                _crop_portrait(vpath, portrait_path)
+                _crop_portrait(vpath, portrait_path, w, h)
             crop_note = f"cropped {w}×{h} → {PORTRAIT_OUT_W}×{PORTRAIT_OUT_H}"
 
         job["portrait_path"] = str(portrait_path)
@@ -230,23 +234,61 @@ def _run_analysis(job_id: str, video_path: str):
             pass
 
 
-def _crop_portrait(src: Path, dst: Path) -> None:
-    """FFmpeg portrait crop: 4K landscape → 1080×1920"""
+def _compute_portrait_crop(w: int, h: int) -> tuple[int, int, int, int]:
+    """Largest centred 9:16 window that fits inside a w×h source.
+
+    Keeps the subject centred (as the Wisuno studio speaker is), for any input
+    resolution. Returns (crop_w, crop_h, x, y) with even dimensions (libx264
+    requires even). For 3840×2160 this yields (1214, 2160, 1313, 0) — the same
+    centred window the old hard-coded 1215:2160:1312:0 crop produced.
+    """
+    target = PORTRAIT_OUT_W / PORTRAIT_OUT_H          # 9:16 = 0.5625
+    if w / h >= target:
+        # source wider than 9:16 → keep full height, crop the sides
+        crop_h = h
+        crop_w = round(crop_h * target)
+    else:
+        # source taller/narrower than 9:16 → keep full width, crop top/bottom
+        crop_w = w
+        crop_h = round(crop_w / target)
+    crop_w -= crop_w % 2
+    crop_h -= crop_h % 2
+    x = (w - crop_w) // 2
+    y = (h - crop_h) // 2
+    return crop_w, crop_h, x, y
+
+
+def _crop_portrait(src: Path, dst: Path, src_w: int, src_h: int) -> None:
+    """FFmpeg portrait crop: centred 9:16 window → 1080×1920, any source size."""
+    if src_w <= 0 or src_h <= 0:
+        raise RuntimeError(
+            f"cannot crop {src.name}: invalid source dimensions {src_w}×{src_h} "
+            f"(probe failed to read width/height)"
+        )
+    cw, ch, cx, cy = _compute_portrait_crop(src_w, src_h)
     vf = (
-        f"crop={PORTRAIT_CROP_W}:{PORTRAIT_CROP_H}:{PORTRAIT_CROP_X}:{PORTRAIT_CROP_Y},"
+        f"crop={cw}:{ch}:{cx}:{cy},"
         f"scale={PORTRAIT_OUT_W}:{PORTRAIT_OUT_H},setsar=1:1"
     )
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-analyzeduration", "5000000", "-probesize", "5000000",
-        "-i", str(src),
-        "-vf", vf,
-        "-c:v", "libx264", "-crf", "22", "-preset", "ultrafast",
-        "-c:a", "aac", "-b:a", "128k",
-        "-max_muxing_queue_size", "512",
-        "-movflags", "+faststart",
-        str(dst),
-    ], check=True, capture_output=True)
+    try:
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-analyzeduration", "5000000", "-probesize", "5000000",
+            "-i", str(src),
+            "-vf", vf,
+            "-c:v", "libx264", "-crf", "22", "-preset", "ultrafast",
+            "-c:a", "aac", "-b:a", "128k",
+            "-max_muxing_queue_size", "512",
+            "-movflags", "+faststart",
+            str(dst),
+        ], check=True, capture_output=True)
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or b"").decode("utf-8", "replace").strip()
+        raise RuntimeError(
+            f"ffmpeg portrait crop failed for {src.name} "
+            f"({src_w}×{src_h}, crop={cw}:{ch}:{cx}:{cy}): "
+            f"{stderr[-800:] or 'no stderr'}"
+        ) from exc
 
 
 # ── Render pipeline (step 5) ─────────────────────────────────────────────────
