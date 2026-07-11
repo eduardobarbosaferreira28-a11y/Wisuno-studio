@@ -27,6 +27,14 @@ _DATEFMT = "%Y-%m-%d %H:%M:%S"
 # session poll to /auth/v1/user). Quieted to WARNING so only real problems show.
 _NOISY_LOGGERS = ("httpx", "httpcore")
 
+# Server loggers that install their own stderr handlers on startup. Without
+# rerouting, their INFO output (uvicorn's "Application startup complete",
+# access logs, etc.) lands on stderr and Railway flags every line as an error.
+_SERVER_LOGGERS = (
+    "uvicorn", "uvicorn.error", "uvicorn.access",
+    "gunicorn", "gunicorn.error", "gunicorn.access",
+)
+
 
 def configure_logging() -> None:
     """Idempotent root logging setup. Honors LOG_LEVEL env (default INFO).
@@ -61,5 +69,12 @@ def configure_logging() -> None:
 
     for noisy in _NOISY_LOGGERS:
         logging.getLogger(noisy).setLevel(logging.WARNING)
+
+    # Drop uvicorn/gunicorn's own handlers and let their records propagate to
+    # the root handlers above, so their logs get the same stdout/stderr split.
+    for name in _SERVER_LOGGERS:
+        server_logger = logging.getLogger(name)
+        server_logger.handlers.clear()
+        server_logger.propagate = True
 
     _configured = True
