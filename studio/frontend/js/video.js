@@ -329,11 +329,16 @@ const videoPage = {
     this._resetSteps();
 
     try {
-      let authHeader = {};
-      const { data: { session } } = await window.supabaseClient.auth.getSession();
-      if (session) {
-        authHeader = { 'Authorization': `Bearer ${session.access_token}` };
-      }
+      // Re-read the session before every request. A large upload on a slow uplink
+      // runs for tens of minutes and WILL outlive the access token; capturing the
+      // header once meant every chunk after expiry 401'd, the retries re-sent the
+      // same dead token, and the upload died a few chunks from the end.
+      // getSession() hands back a still-valid token, refreshing it when needed.
+      const authHeaders = async ({ force = false } = {}) => {
+        if (force) await window.supabaseClient.auth.refreshSession();
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+      };
 
       // 1. Chunked Upload setup (20MB chunks)
       const chunkSize = 20 * 1024 * 1024;
@@ -360,13 +365,17 @@ const videoPage = {
           formData.append('file', chunk, file.name);
 
           try {
+            // A 401 means the token died mid-upload — force a refresh before retrying,
+            // otherwise every remaining attempt replays the same expired credential.
+            const headers = await authHeaders({ force: lastErr?.status === 401 });
             const resp = await fetch('/api/video/upload_chunk', {
               method: 'POST',
-              headers: authHeader,
+              headers,
               body: formData
             });
             if (resp.ok) { uploaded = true; break; }
             lastErr = new Error(`HTTP ${resp.status}`);
+            lastErr.status = resp.status;
           } catch (e) {
             lastErr = e; // network error — retry
           }
@@ -392,7 +401,7 @@ const videoPage = {
 
       const completeResp = await fetch('/api/video/upload_complete', {
         method: 'POST',
-        headers: authHeader,
+        headers: await authHeaders(),
         body: completeData
       });
 
