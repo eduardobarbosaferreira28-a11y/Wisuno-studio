@@ -21,14 +21,17 @@ WORKDIR /app
 # Install system dependencies
 # ffmpeg is needed for video processing
 # imagemagick is needed for moviepy/hyperframes text/image rendering
-# curl is needed to install Node.js
+# unzip is needed by hyperframes to extract the chrome-headless-shell archive —
+# without it the browser fetch dies with "no zip archiver is available"
+# curl is needed to install Node.js (22+; hyperframes requires it)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     imagemagick \
     fonts-liberation \
+    unzip \
     curl \
     ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,6 +41,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # clip, so they drift slower and slower behind the speaker. 0.7.18 is verified
 # to seek by absolute seconds. Bump deliberately, never accidentally.
 RUN npm install -g hyperframes@0.7.18
+
+# Download chrome-headless-shell at BUILD time so it lives in the image layer.
+# Otherwise the first render shells out to fetch 114 MB of Chrome inside a request,
+# into a cache that no volume backs — so it re-downloads on every restart, and the
+# extraction fails outright without `unzip`. NODE_OPTIONS is cleared for this step:
+# the 256 MB heap cap below starves the downloader.
+#
+# `browser path` prints the resolved executable — asserting it is executable proves the
+# browser is genuinely usable, and fails the BUILD rather than the first user's render.
+# We assert on the path rather than on a cache directory because `ensure` may either
+# download Chrome or adopt one already on the system, and the two land in different places.
+RUN NODE_OPTIONS= hyperframes browser ensure \
+    && test -x "$(NODE_OPTIONS= hyperframes browser path)"
 
 # Fix ImageMagick policy to allow text/rendering if needed (common moviepy issue)
 # (In debian 11+, ImageMagick disables some ghostscript fonts/paths by default. We remove the policy file if it exists)

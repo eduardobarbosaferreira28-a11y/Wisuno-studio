@@ -259,5 +259,5 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         try:
             from services.history_service import log_job
             log_job(job_id, "carousel", "error", {"topic": job.get("topic", "Carousel"), "error": str(exc)}, user_id=job.get("user_id"))
-        except Exception:
-            pass
+        except Exception as log_err:
+            logger.warning("[carousel_service] History log failed: %s", log_err)

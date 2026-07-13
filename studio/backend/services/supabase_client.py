@@ -9,19 +9,24 @@ if SUPABASE_URL and SUPABASE_ANON_KEY:
 else:
     supabase = None
 
-# Storage uploads happen server-side, so prefer the SERVICE ROLE key (bypasses
-# row-level-security on the storage bucket). Fall back to the anon client if the
-# service role key isn't configured.
+# Trusted server-side work (storage uploads, writing the `jobs` history table) uses
+# the SERVICE ROLE key, which bypasses row-level-security. The anon client above runs
+# as the Postgres `anon` role and carries no user JWT, so anything it writes is at the
+# mercy of whatever RLS policies happen to be on the table. Fall back to the anon
+# client only if the service role key isn't configured.
 _SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 if SUPABASE_URL and _SERVICE_ROLE_KEY:
-    storage_supabase: Client = create_client(SUPABASE_URL, _SERVICE_ROLE_KEY)
+    admin_supabase: Client = create_client(SUPABASE_URL, _SERVICE_ROLE_KEY)
 else:
-    storage_supabase = supabase
+    admin_supabase = supabase
+
+# Back-compat alias — this client is no longer storage-specific.
+storage_supabase = admin_supabase
 
 
 def upload_to_storage(bucket: str, destination_path: str, local_file_path: str, content_type: str) -> str:
     """Uploads a file to Supabase Storage and returns the public URL."""
-    supabase = storage_supabase
+    supabase = admin_supabase
     if not supabase:
         return ""
     try:

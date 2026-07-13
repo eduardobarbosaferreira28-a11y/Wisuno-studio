@@ -200,11 +200,15 @@ async def install_hyperframes(background_tasks: BackgroundTasks):
         _install_status["log"] = ""
         import platform
         try:
+            # PINNED to match the Dockerfile. An unpinned install pulls whatever is
+            # latest and reintroduces the progress-seeking caption drift (see 82f26c7).
+            # `browser ensure` then fetches chrome-headless-shell, which the renderer
+            # needs and which npm does not bring along.
             result = subprocess.run(
-                "npm install -g hyperframes",
+                "npm install -g hyperframes@0.7.18 && npx --yes hyperframes browser ensure",
                 capture_output=True,
                 text=True,
-                timeout=180,
+                timeout=600,
                 shell=True,  # shell=True needed on Windows for npm.cmd
             )
             _install_status["log"] = result.stdout + result.stderr

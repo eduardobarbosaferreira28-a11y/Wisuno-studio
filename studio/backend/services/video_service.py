@@ -229,9 +229,13 @@ def _run_analysis(job_id: str, video_path: str):
         print(f"[video_service] Analysis {job_id} failed:\n{tb}")
         
         try:
-            log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc), "step": "analysis"})
-        except Exception:
-            pass
+            log_job(
+                job_id, "video", "error",
+                {"topic": job.get("topic", "Video"), "error": str(exc), "step": "analysis"},
+                user_id=job.get("user_id"),
+            )
+        except Exception as log_err:
+            print(f"[video_service] History log failed: {log_err}")
 
 
 def _compute_portrait_crop(w: int, h: int) -> tuple[int, int, int, int]:
@@ -626,8 +630,8 @@ def _run_render(
         # Log error history
         try:
             log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc)}, user_id=job.get("user_id"))
-        except Exception:
-            pass
+        except Exception as log_err:
+            print(f"[video_service] History log failed: {log_err}")
 
 
 # ── Music helpers ─────────────────────────────────────────────────────────────
