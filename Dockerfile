@@ -48,12 +48,12 @@ RUN npm install -g hyperframes@0.7.18
 # extraction fails outright without `unzip`. NODE_OPTIONS is cleared for this step:
 # the 256 MB heap cap below starves the downloader.
 #
-# `browser path` prints the resolved executable — asserting it is executable proves the
-# browser is genuinely usable, and fails the BUILD rather than the first user's render.
-# We assert on the path rather than on a cache directory because `ensure` may either
-# download Chrome or adopt one already on the system, and the two land in different places.
+# The `find` asserts an executable chrome-headless-shell actually landed in the cache,
+# so a broken browser install fails the BUILD rather than the first user's render.
+# (Don't assert via `hyperframes browser path` — it decorates its output when stdout
+# isn't a TTY, so the path can't be consumed by command substitution here.)
 RUN NODE_OPTIONS= hyperframes browser ensure \
-    && test -x "$(NODE_OPTIONS= hyperframes browser path)"
+    && find /root/.cache/hyperframes -type f -name 'chrome-headless-shell' -perm -u+x | grep -q .
 
 # Fix ImageMagick policy to allow text/rendering if needed (common moviepy issue)
 # (In debian 11+, ImageMagick disables some ghostscript fonts/paths by default. We remove the policy file if it exists)
