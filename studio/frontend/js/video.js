@@ -318,7 +318,7 @@ const videoPage = {
   /* ── Upload & analyse ─────────────────────────────────────────────────────── */
 
   async startUpload() {
-    const file = this._selectedFile;
+    let file = this._selectedFile;
     if (!file) { toast.error('Please select a video file first.'); return; }
 
     const btn = document.getElementById('btn-analyse');
@@ -329,6 +329,17 @@ const videoPage = {
     this._resetSteps();
 
     try {
+      // Crop/downscale to 1080×1920 locally first. The uplink is the bottleneck
+      // (~25 min for a 4K source) and the server discards those pixels in step 0
+      // anyway — and an upload that is already exactly 1080×1920 makes the server
+      // skip its full-4K re-encode too. Falls back to the original file on any
+      // failure, so this can only ever save time, never cost an upload.
+      if (window.videoTranscoder) {
+        btn.textContent = 'Preparing… 0%';
+        file = await window.videoTranscoder.prepare(file, (pct) => {
+          btn.textContent = `Preparing… ${pct}%`;
+        });
+      }
       // Re-read the session before every request. A large upload on a slow uplink
       // runs for tens of minutes and WILL outlive the access token; capturing the
       // header once meant every chunk after expiry 401'd, the retries re-sent the
@@ -345,18 +356,21 @@ const videoPage = {
       const totalChunks = Math.ceil(file.size / chunkSize);
       const uploadId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
 
-      // 2. Upload each chunk sequentially, retrying transient failures so a
-      //    single network blip or auth hiccup doesn't abort the whole upload.
+      // 2. Upload chunks with a small concurrency window, retrying transient
+      //    failures so a single network blip or auth hiccup doesn't abort the whole
+      //    upload. Sequential chunks left the link idle through every round-trip;
+      //    a few in flight keeps it saturated. Order doesn't matter — the server
+      //    files each chunk under its index and upload_complete sorts them.
       const MAX_CHUNK_ATTEMPTS = 4;
-      for (let i = 0; i < totalChunks; i++) {
+      const CONCURRENCY = 4;
+      let doneChunks = 0;
+
+      const sendChunk = async (i) => {
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
-        btn.textContent = `Uploading… ${Math.round(((i) / totalChunks) * 100)}%`;
-
         let lastErr = null;
-        let uploaded = false;
         for (let attempt = 1; attempt <= MAX_CHUNK_ATTEMPTS; attempt++) {
           // FormData must be rebuilt per attempt — the stream is consumed once.
           const formData = new FormData();
@@ -373,7 +387,11 @@ const videoPage = {
               headers,
               body: formData
             });
-            if (resp.ok) { uploaded = true; break; }
+            if (resp.ok) {
+              doneChunks++;
+              btn.textContent = `Uploading… ${Math.round((doneChunks / totalChunks) * 100)}%`;
+              return;
+            }
             lastErr = new Error(`HTTP ${resp.status}`);
             lastErr.status = resp.status;
           } catch (e) {
@@ -381,15 +399,21 @@ const videoPage = {
           }
 
           if (attempt < MAX_CHUNK_ATTEMPTS) {
-            btn.textContent = `Retrying chunk ${i + 1}/${totalChunks}… (${attempt}/${MAX_CHUNK_ATTEMPTS - 1})`;
             await new Promise(r => setTimeout(r, 1000 * attempt)); // linear backoff
           }
         }
 
-        if (!uploaded) {
-          throw new Error(`Upload failed at chunk ${i + 1}/${totalChunks}${lastErr ? ` (${lastErr.message})` : ''}`);
+        throw new Error(`Upload failed at chunk ${i + 1}/${totalChunks}${lastErr ? ` (${lastErr.message})` : ''}`);
+      };
+
+      // Pull from a shared cursor so a slow chunk doesn't stall the others.
+      let cursor = 0;
+      const workers = Array.from({ length: Math.min(CONCURRENCY, totalChunks) }, async () => {
+        while (cursor < totalChunks) {
+          await sendChunk(cursor++);
         }
-      }
+      });
+      await Promise.all(workers);
 
       btn.textContent = 'Processing…';
 
