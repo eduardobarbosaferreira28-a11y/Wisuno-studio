@@ -18,7 +18,9 @@ Usage (called internally by video_service):
     )
 """
 from __future__ import annotations
+import difflib
 import json
+import string
 from pathlib import Path
 
 
@@ -66,6 +68,104 @@ def _snap_dur(duration: float, fps: float | None) -> float:
     return round(duration * fps) / fps
 
 
+def _clean(s: str) -> str:
+    """Normalise a caption word for comparison: strip punctuation + lowercase."""
+    return s.translate(str.maketrans("", "", string.punctuation)).lower()
+
+
+def words_in_range(words: list[dict], r_start: float, r_end: float) -> list[dict]:
+    """Transcript words whose start falls inside [r_start, r_end).
+
+    Single source of truth for range→words selection so the review-step caption
+    prefill (transcript_text_for_ranges) and the render (build_karaoke_ass) can
+    never diverge on which words belong to a cut.
+    """
+    return [w for w in words if r_start <= float(w["start"]) < r_end]
+
+
+def _load_words(transcript_json: Path) -> list[dict]:
+    data = json.loads(transcript_json.read_text(encoding="utf-8"))
+    return [w for w in data.get("words", []) if w.get("type") == "word"]
+
+
+def transcript_text_for_ranges(transcript_json: Path, ranges: list[dict]) -> list[str]:
+    """Exact transcript caption text per range — the words that will be burned in.
+
+    Used to prefill the review UI's per-cut caption box so what the user sees and
+    edits is precisely what the karaoke renderer would otherwise emit verbatim.
+    """
+    words = _load_words(transcript_json)
+    out: list[str] = []
+    for rng in ranges:
+        rw = words_in_range(words, float(rng["start"]), float(rng["end"]))
+        out.append(" ".join(w["text"].strip() for w in rw))
+    return out
+
+
+def align_edit_to_timings(range_words: list[dict], user_words: list[str]) -> list[dict]:
+    """Map the user's edited caption words onto the transcript's per-word timings.
+
+    The transcript is the source of truth for timing (this is what keeps the
+    karaoke locked to the speaker). We diff the edited text against the transcript
+    words and:
+      • equal   → keep the transcript timing, show the user's spelling;
+      • replace → distribute the edited words evenly across the span of the
+                  transcript words they replaced (only that changed span is
+                  redistributed — never the whole cut, which was the old drift bug);
+      • delete  → drop the words the user removed;
+      • insert  → place the added words in the gap between the neighbouring
+                  transcript words (borrowing a small slice from an adjacent word
+                  when there is no real gap), split evenly.
+    """
+    orig_clean = [_clean(w["text"]) for w in range_words]
+    user_clean = [_clean(u) for u in user_words]
+    if orig_clean == user_clean:
+        return range_words  # no textual change — keep exact transcript timings
+
+    out: list[dict] = []
+    sm = difflib.SequenceMatcher(None, orig_clean, user_clean, autojunk=False)
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            for k in range(i2 - i1):
+                out.append({**range_words[i1 + k], "text": user_words[j1 + k]})
+        elif tag == "replace":
+            span0 = float(range_words[i1]["start"])
+            span1 = float(range_words[i2 - 1]["end"])
+            n = j2 - j1
+            for k in range(n):
+                out.append({
+                    "text":  user_words[j1 + k],
+                    "start": span0 + (span1 - span0) * k / n,
+                    "end":   span0 + (span1 - span0) * (k + 1) / n,
+                })
+        elif tag == "delete":
+            continue  # user removed these words; timing absorbed by neighbours
+        elif tag == "insert":
+            # Added words with no transcript counterpart. Fill the gap between the
+            # previous word's end and the next word's start; if there is no gap,
+            # borrow a short slice from the adjacent word so they still show.
+            prev_end = float(range_words[i1 - 1]["end"]) if i1 > 0 else None
+            next_start = float(range_words[i1]["start"]) if i1 < len(range_words) else None
+            if prev_end is not None and next_start is not None:
+                g0, g1 = prev_end, next_start
+            elif prev_end is not None:
+                g0, g1 = prev_end, prev_end + 0.4
+            elif next_start is not None:
+                g0, g1 = max(0.0, next_start - 0.4), next_start
+            else:
+                g0, g1 = 0.0, 0.4
+            if g1 <= g0:
+                g1 = g0 + 0.4  # no real gap — carve a small window
+            n = j2 - j1
+            for k in range(n):
+                out.append({
+                    "text":  user_words[j1 + k],
+                    "start": g0 + (g1 - g0) * k / n,
+                    "end":   g0 + (g1 - g0) * (k + 1) / n,
+                })
+    return out
+
+
 def build_karaoke_ass(
     transcript_json: Path,
     ranges: list[dict],
@@ -76,8 +176,7 @@ def build_karaoke_ass(
 ) -> list[list[dict]]:
     """Generate master.ass from Scribe transcript + EDL ranges, and return structured lines."""
     # Load word-level transcript
-    data  = json.loads(transcript_json.read_text(encoding="utf-8"))
-    words = [w for w in data.get("words", []) if w.get("type") == "word"]
+    words = _load_words(transcript_json)
 
     # Remap each word to output timeline
     output_words: list[dict] = []
@@ -88,40 +187,25 @@ def build_karaoke_ass(
         r_end   = float(rng["end"])
         dur     = r_end - r_start
 
-        range_words = []
-        for w in words:
-            ws = float(w["start"])
-            we = float(w["end"])
-            if ws >= r_start and ws < r_end:
-                range_words.append(w)
-                
-        # Optionally swap caption text from the cut's `quote` field — but ALWAYS
-        # keep the transcript's real per-word timings. The `quote` is Claude's
-        # approximation of the cut (auto pipeline) and its word count routinely
-        # differs from the transcript. The old code treated any word-count
-        # mismatch as a manual edit and spread the words EVENLY across the cut,
-        # which discards the real timing and makes the karaoke drift further and
-        # further behind the speaker as the clip goes on. We never do that now:
-        # the transcript is the source of truth for timing, and we only swap text
-        # when it lines up 1:1 with the transcript words.
+        range_words = words_in_range(words, r_start, r_end)
+
+        # Honor the user's edited caption text from the cut's `quote` field while
+        # ALWAYS keeping the transcript's real per-word timings as the skeleton.
+        # align_edit_to_timings() diffs the edit against the transcript words:
+        # unchanged words keep their exact timing, and only the edited span is
+        # redistributed. This is what lets typo fixes AND add/remove/split/merge
+        # edits reach the render, without the old even-distribution that made the
+        # karaoke drift behind the speaker (see git history / PROJECT_MEMORY.md).
+        #
+        # Gate on `quote_edited`: the review UI seeds every `quote` with the exact
+        # transcript text of its range, so an un-edited quote must be ignored (use
+        # the transcript verbatim). Only align when the user actually typed into the
+        # caption box — otherwise a pure start/end trim would diff a now-stale quote
+        # against the re-scoped range and wrongly add back / drop words.
         user_quote = rng.get("quote", "").strip()
-        orig_text = " ".join(w["text"] for w in range_words)
+        if user_quote and rng.get("quote_edited"):
+            range_words = align_edit_to_timings(range_words, user_quote.split())
 
-        if user_quote:
-            import string
-            def clean(s): return s.translate(str.maketrans('', '', string.punctuation)).lower().split()
-
-            user_words = user_quote.split()
-            user_clean = clean(user_quote)
-            orig_clean = clean(orig_text)
-
-            if user_clean != orig_clean and len(user_words) == len(range_words):
-                # Same word count: swap the visible text, keep exact timings.
-                for i in range(len(range_words)):
-                    range_words[i] = {**range_words[i], "text": user_words[i]}
-            # Different word count: ignore the quote and keep the transcript words
-            # and their real timings (no even-distribution — that was the drift bug).
-        
         # Remap to output timeline
         for w in range_words:
             ws = float(w["start"])

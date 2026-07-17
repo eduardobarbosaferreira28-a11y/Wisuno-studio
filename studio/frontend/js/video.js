@@ -585,6 +585,10 @@ const videoPage = {
   updateCut(idx, field, value) {
     if (vState.editedCuts[idx]) {
       vState.editedCuts[idx][field] = value;
+      // Flag genuine caption edits so the renderer honors the typed text. Times
+      // (start/end) are seeded from the transcript and re-derived at render, so
+      // only a real edit to the caption box should override the transcript words.
+      if (field === 'quote') vState.editedCuts[idx].quote_edited = true;
       this._renderCutList();
     }
   },

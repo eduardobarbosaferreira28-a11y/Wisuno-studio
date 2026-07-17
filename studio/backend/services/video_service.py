@@ -212,6 +212,11 @@ def _run_analysis(job_id: str, video_path: str):
         # STEP 3 — AI Cut Analysis (operates on portrait source)
         _step_start(job, 3)
         cuts = _ai_cut_analysis(portrait_path, edit_dir, probe)
+        # Overwrite each cut's `quote` with the EXACT transcript text for its range,
+        # so the review UI's caption box shows precisely what will be burned in
+        # (Claude's `quote` is a loose paraphrase). This makes user edits a minimal,
+        # reliable diff that the karaoke renderer honors — see build_karaoke_ass.
+        _prefill_caption_quotes(cuts, transcript_path)
         job["proposed_cuts"] = cuts
         _step_done(job, 3, f"{len(cuts)} proposed cut(s) — {sum(c['end']-c['start'] for c in cuts):.1f}s total")
 
@@ -774,6 +779,25 @@ def _pack_transcripts(edit_dir: Path) -> Path:
     out_path = edit_dir / "takes_packed.md"
     out_path.write_text(markdown, encoding="utf-8")
     return out_path
+
+
+def _prefill_caption_quotes(cuts: list[dict], transcript_path: Path) -> None:
+    """Replace each cut's `quote` with the exact transcript text for its range.
+
+    The review UI edits `quote`, and the karaoke renderer derives captions from the
+    transcript words. Seeding `quote` with the real per-range transcript text makes
+    the review box show precisely what will be burned in, so a user's typo fix is a
+    minimal diff the renderer honors (see build_karaoke_ass.align_edit_to_timings).
+    Best-effort: on any failure the original Claude `quote`s are left untouched.
+    """
+    try:
+        from helpers.build_karaoke_ass import transcript_text_for_ranges
+        texts = transcript_text_for_ranges(transcript_path, cuts)
+        for cut, text in zip(cuts, texts):
+            if text:
+                cut["quote"] = text
+    except Exception as exc:
+        print(f"[video_service] Caption prefill skipped: {exc}")
 
 
 def _ai_cut_analysis(vpath: Path, edit_dir: Path, probe: dict) -> list[dict]:
