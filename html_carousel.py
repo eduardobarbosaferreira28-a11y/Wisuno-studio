@@ -55,11 +55,11 @@ from config import (
     OUTPUT_DIR,
     PROMPTS_DIR,
 )
+from chart_renderer import chart_data_uri_for, svg_to_data_uri
 from content_extractor import extract_from_text, extract_from_url
 from image_generator import (
     bytes_to_data_uri,
     generate_background_image,
-    generate_chart_image,
 )
 from swipeable_carousel import build_swipeable_html
 
@@ -187,20 +187,19 @@ def generate_slide_images(
                 time.sleep(1)
 
         elif stype == "chart_slide":
-            chart_asset = slide.get("chart_asset", "price action")
-            chart_type  = slide.get("chart_type", "line_chart")
-            img_path    = images_dir / f"chart_{snum}.jpg"
+            chart_asset  = slide.get("chart_asset", "price action")
+            chart_symbol = slide.get("chart_symbol", "")
+            img_path     = images_dir / f"chart_{snum}.svg"
             if img_path.exists():
                 print(f"     -> Chart {snum}: reusing cached {img_path.name}")
-                slide_images[snum] = bytes_to_data_uri(img_path.read_bytes())
+                slide_images[snum] = svg_to_data_uri(img_path.read_text(encoding="utf-8"))
             else:
-                print(f"     -> Chart: {chart_asset}")
-                try:
-                    img_bytes = generate_chart_image(chart_asset, chart_type, img_path)
-                    slide_images[snum] = bytes_to_data_uri(img_bytes)
-                except Exception as exc:
-                    print(f"        WARNING: {exc} -- using SVG fallback.")
-                time.sleep(1)
+                print(f"     -> Chart: {chart_asset} ({chart_symbol or 'no ticker'})")
+                data_uri = chart_data_uri_for(chart_symbol, img_path)
+                if data_uri:
+                    slide_images[snum] = data_uri
+                else:
+                    print("        Using static SVG fallback (no live chart).")
 
     return slide_images
 

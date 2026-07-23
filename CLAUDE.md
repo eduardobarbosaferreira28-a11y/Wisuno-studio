@@ -118,7 +118,7 @@ Slide count variants (MIN_SLIDES=4, MAX_SLIDES=8, DEFAULT_SLIDES=6):
       "asset_tag": "...", "quote_text": "...", "quote_attribution": "...",
       "rhetorical_question": "..." },
     { "slide_number": 5, "type": "chart_slide",
-      "asset_tag": "...", "chart_asset": "...", "chart_type": "line_chart",
+      "asset_tag": "...", "chart_asset": "...", "chart_symbol": "^GSPC", "chart_type": "line_chart",
       "chart_caption": "..." },
     { "slide_number": 6, "type": "cta_slide" }
   ]

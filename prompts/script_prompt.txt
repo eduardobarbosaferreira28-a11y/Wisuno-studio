@@ -17,7 +17,7 @@ SLIDE TYPES AVAILABLE (pick the right mix per story complexity):
   data_slide   → key numbers and stats
   analysis_slide → market mechanics / "why it matters"
   quote_slide  → sourced quote or editorial voice
-  chart_slide  → price action or data chart
+  chart_slide  → price action or data chart (ALWAYS set chart_symbol to a real Yahoo Finance ticker when the asset is tradable)
   cta_slide    → always last (fixed content, no variable fields needed)
 
 SLIDE COUNT VARIANTS:
@@ -81,6 +81,7 @@ JSON SCHEMA:
       "asset_tag": "string",
       "chart_type": "string — one of: line_chart, bar_chart, annotated_screenshot",
       "chart_asset": "string — the asset or data series to plot (e.g. 'Brent Crude 1-week', 'GBP/USD daily', 'US Non-Farm Payrolls MoM')",
+      "chart_symbol": "string — a valid Yahoo Finance ticker for chart_asset so a live chart can be fetched, e.g. '^GSPC' (S&P 500), '^IXIC' (Nasdaq), '^DJI' (Dow), 'EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'GC=F' (gold), 'SI=F' (silver), 'CL=F' (WTI crude), 'BZ=F' (Brent), 'BTC-USD', 'ETH-USD', 'AAPL'. Use '' (empty string) only when the asset has NO tradable ticker (e.g. a macro data series like CPI or Non-Farm Payrolls).",
       "chart_caption": "string — one sentence describing what the chart shows, max 20 words"
     },
     {
