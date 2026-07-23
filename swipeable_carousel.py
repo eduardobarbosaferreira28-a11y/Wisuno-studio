@@ -81,6 +81,16 @@ _FONT_CONFIGS: dict[str, dict] = {
         "heading": "'Urbanist'",
         "body":    "'Inter'",
     },
+    # Vietnamese is Latin-script (with diacritics) — reuse the brand fonts.
+    # Urbanist + Inter both ship a Vietnamese subset (served via unicode-range).
+    "vi": {
+        "google_fonts": (
+            "https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700;900"
+            "&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
+        ),
+        "heading": "'Urbanist'",
+        "body":    "'Inter'",
+    },
 }
 
 # ── CTA slide copy per language ──────────────────────────────────────────────
@@ -90,6 +100,7 @@ _CTA_CONTENT: dict[str, tuple[str, str]] = {
     "zh-CN": ("关注获取更多",      "每日市场解析，让您掌握每一个宏观动态。"),
     "th":    ("ติดตามเพิ่มเติม",  "วิเคราะห์ตลาดรายวัน ไม่พลาดทุกความเคลื่อนไหวเศรษฐกิจมหภาค"),
     "pt-BR": ("SIGA PARA MAIS",  "Análises de mercado diárias para você nunca perder um movimento macro."),
+    "vi":    ("THEO DÕI ĐỂ XEM THÊM", "Phân tích thị trường mỗi ngày để bạn không bỏ lỡ bất kỳ biến động vĩ mô nào."),
 }
 
 _CTA_CONTENT_EDUCATIONAL: dict[str, tuple[str, str]] = {
@@ -98,6 +109,7 @@ _CTA_CONTENT_EDUCATIONAL: dict[str, tuple[str, str]] = {
     "zh-CN": ("关注获取更多",      "每周全新金融概念，让您持续学习、不断进步。"),
     "th":    ("ติดตามเพิ่มเติม",  "แนวคิดการเงินใหม่ทุกสัปดาห์ เพื่อให้คุณไม่หยุดเรียนรู้"),
     "pt-BR": ("SIGA PARA MAIS",  "Novos conceitos financeiros toda semana — para você nunca parar de aprender."),
+    "vi":    ("THEO DÕI ĐỂ XEM THÊM", "Khái niệm tài chính mới mỗi tuần — để bạn không ngừng học hỏi."),
 }
 
 _CTA_CONTENT_PROMOTIONAL: dict[str, tuple[str, str]] = {
@@ -106,6 +118,7 @@ _CTA_CONTENT_PROMOTIONAL: dict[str, tuple[str, str]] = {
     "zh-CN": ("关注获取更多",      "加入 Wisuno 社群，与更聪明的交易者同行——每日看懂市场。"),
     "th":    ("ติดตามเพิ่มเติม",  "ร่วมเป็นส่วนหนึ่งของชุมชน Wisuno เทรดอย่างชาญฉลาด เข้าใจตลาดทุกวัน"),
     "pt-BR": ("SIGA PARA MAIS",  "Junte-se a uma comunidade que opera de forma mais inteligente com a Wisuno — mercados claros, todos os dias."),
+    "vi":    ("THEO DÕI ĐỂ XEM THÊM", "Tham gia cộng đồng giao dịch thông minh hơn cùng Wisuno — hiểu rõ thị trường mỗi ngày."),
 }
 
 # ── UI chrome strings per language ───────────────────────────────────────────
@@ -158,6 +171,18 @@ _UI_STRINGS: dict[str, dict] = {
         "done":         "Baixar todos os slides (JPG)",
         "error":        "Falha na exportação — tente novamente",
     },
+    "vi": {
+        "html_lang":    "vi",
+        "slide_label":  "Trang",
+        "prev_slide":   "Trang trước",
+        "next_slide":   "Trang sau",
+        "download_btn": "Tải tất cả các trang (JPG)",
+        "loading":      "Đang tải...",
+        "rendering":    "Đang kết xuất {i} / {n}...",
+        "packaging":    "Đang đóng gói ZIP...",
+        "done":         "Tải tất cả các trang (JPG)",
+        "error":        "Xuất thất bại — thử lại",
+    },
     "th": {
         "html_lang":    "th",
         "slide_label":  "สไลด์",
@@ -179,6 +204,7 @@ _SLIDE_LABELS: dict[str, dict[str, str]] = {
     "zh-CN": {"why_it_matters": "为什么重要"},
     "th":    {"why_it_matters": "ทำไมจึงสำคัญ"},
     "pt-BR": {"why_it_matters": "POR QUE IMPORTA"},
+    "vi":    {"why_it_matters": "TẠI SAO ĐIỀU NÀY QUAN TRỌNG"},
 }
 
 
@@ -208,6 +234,11 @@ _DISCLAIMER_TEXT: dict[str, str] = {
         "O trading de CFDs envolve um alto nível de risco e pode não ser adequado para todos os investidores. "
         "Este conteúdo tem caráter exclusivamente educacional e não constitui aconselhamento financeiro ou de investimento. "
         "A Wisuno Capital é regulamentada pela CMA, CySEC, FSA e FSC. Negocie com responsabilidade."
+    ),
+    "vi": (
+        "Giao dịch CFD tiềm ẩn mức độ rủi ro cao và có thể không phù hợp với mọi nhà đầu tư. "
+        "Nội dung này chỉ nhằm mục đích giáo dục và không cấu thành lời khuyên tài chính hay đầu tư. "
+        "Wisuno Capital được quản lý bởi CMA, CySEC, FSA & FSC. Hãy giao dịch có trách nhiệm."
     ),
 }
 
@@ -1084,8 +1115,9 @@ def build_swipeable_html(
     Args:
         script:        The carousel script dict (same schema as script.json).
         slide_images:  Optional mapping of slide_number → data URI for bg images.
-        language:      One of 'en', 'zh-TW', 'zh-CN', 'th'. Controls fonts,
-                       disclaimer text, and CTA copy.
+        language:      A supported language code (see _FONT_CONFIGS keys, e.g.
+                       'en', 'zh-TW', 'zh-CN', 'th', 'pt-BR', 'vi'). Controls
+                       fonts, disclaimer text, UI chrome, and CTA copy.
 
     Returns:
         Complete HTML string.

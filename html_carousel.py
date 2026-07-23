@@ -87,6 +87,7 @@ LANGUAGES: dict[str, str] = {
     "th":    "Thai (ภาษาไทย)",
     "sw":    "Kiswahili",
     "pt-BR": "Brazilian Portuguese (Português do Brasil)",
+    "vi":    "Vietnamese (Tiếng Việt)",
 }
 
 
