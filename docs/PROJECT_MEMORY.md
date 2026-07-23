@@ -100,6 +100,12 @@ in up to 6 languages.
 - **Content types:** Market Insight, Promotional, Market Update, Educational.
 - **Slides:** 4–8 (default 6); slide types cover / data_slide / analysis_slide / quote_slide /
   chart_slide / cta_slide. Output → `output/<slug>/`.
+- **Live charts (2026-07-23):** `chart_slide`s plot a **real, live price series** for the article's
+  asset, not a fake Gemini image. `chart_renderer.py` fetches close prices via `yfinance` and renders
+  the template's brand chart (orange `#FF6700` line on `#0A0A0A`, area gradient, faint grid) as a
+  `data:image/svg+xml` URI. The script LLM emits a Yahoo ticker `chart_symbol` (e.g. `^GSPC`,
+  `EURUSD=X`, `GC=F`, `BTC-USD`; `""` for non-tradable macro series). Cached as `chart_{n}.svg`;
+  on any failure it falls back to the static SVG (Gemini abstract chart no longer used for charts).
 - **API:** `POST /api/carousel/run`, `GET /api/carousel/status/{job_id}`,
   `GET /api/carousel/download/{job_id}/{lang}/{file_type}`, `GET /api/carousel/caption/...`,
   `GET /api/carousel/preview/...`, `GET /api/carousel/languages`.
