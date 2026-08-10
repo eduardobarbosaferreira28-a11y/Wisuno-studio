@@ -800,10 +800,82 @@ def _prefill_caption_quotes(cuts: list[dict], transcript_path: Path) -> None:
         print(f"[video_service] Caption prefill skipped: {exc}")
 
 
+_BEAT_LABELS = ["HOOK", "POINT", "EXAMPLE", "INSIGHT", "TRANSITION", "CTA", "CLOSING"]
+
+# Schema handed to the Messages API via output_config.format. Constraining
+# generation is what guarantees `start`/`end` arrive as JSON numbers rather than
+# the zero-padded `015.30` the transcript renders (pack_transcripts.format_time).
+_CUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "cuts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string"},
+                    "start":  {"type": "number"},
+                    "end":    {"type": "number"},
+                    "beat":   {"type": "string", "enum": _BEAT_LABELS},
+                    "quote":  {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["source", "start", "end", "beat", "quote", "reason"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["cuts"],
+    "additionalProperties": False,
+}
+
+
+def _strip_leading_zero_numbers(text: str) -> str:
+    """Rewrite `015.30` as `15.30` in JSON number positions.
+
+    takes_packed.md pads timestamps to six chars (pack_transcripts.format_time),
+    and Claude drifts into copying that padding partway through a long EDL.
+    Leading zeros are invalid JSON, so json.loads fails with "Expecting ','
+    delimiter" on an array that is otherwise perfectly well-formed. Digits
+    inside string literals (quote text, source names) are left alone.
+    """
+    out: list[str] = []
+    in_str = escaped = False
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if in_str:
+            out.append(ch)
+            if escaped:            escaped = False
+            elif ch == "\\":       escaped = True
+            elif ch == '"':        in_str = False
+            i += 1
+            continue
+        if ch == '"':
+            in_str = True
+            out.append(ch)
+            i += 1
+            continue
+        # Only at the start of a number token — never mid-number.
+        if ch == "0" and (not out or out[-1] not in "0123456789."):
+            j = i
+            while j < n and text[j] == "0":
+                j += 1
+            if j < n and text[j].isdigit():
+                i = j          # 015.30 -> 15.30
+                continue
+            out.append("0")    # a real 0, 0.5, -0.04 — keep it
+            i = j
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _ai_cut_analysis(vpath: Path, edit_dir: Path, probe: dict) -> list[dict]:
     """Call Claude to propose EDL cuts from the packed transcript."""
     import anthropic
-    from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
+    from config import ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL
 
     packed_md = (edit_dir / "takes_packed.md").read_text(encoding="utf-8")
     duration  = probe.get("duration", 0)
@@ -833,34 +905,46 @@ EDITING RULES:
 6. Segments should be 2–15s each. Avoid one giant uncut block
 7. Self-check: your cuts must total {target_min}–{target_max}s before responding
 
-IMPORTANT: Respond with ONLY the JSON array below — no prose, no markdown, no analysis before or after:
-[
-  {{
-    "source": "{vpath.stem}",
-    "start": 0.04,
-    "end": 4.72,
-    "beat": "HOOK",
-    "quote": "exact words kept from transcript",
-    "reason": "why kept"
-  }}
-]
+NUMBER FORMAT: the transcript pads timestamps to six characters ([015.30-023.80]).
+Strip the padding in your output: write 15.30, not 015.30.
+
+Return an object with a "cuts" array, one entry per kept segment:
+{{
+  "cuts": [
+    {{
+      "source": "{vpath.stem}",
+      "start": 0.04,
+      "end": 4.72,
+      "beat": "HOOK",
+      "quote": "exact words kept from transcript",
+      "reason": "why kept"
+    }}
+  ]
+}}
 
 Beat labels: HOOK, POINT, EXAMPLE, INSIGHT, TRANSITION, CTA, CLOSING"""
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     resp = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=4096,
+        model=ANTHROPIC_STRUCTURED_MODEL,
+        # A long take yields 40+ cuts at ~70 tokens each; 4096 truncated the array.
+        # Headroom also covers adaptive thinking, which this model runs by default.
+        max_tokens=16000,
+        # Structured outputs constrain generation to the schema, so `start`/`end`
+        # are emitted as real JSON numbers. This is what makes the zero-padded
+        # `015.30` timestamps in takes_packed.md impossible to echo back verbatim.
+        output_config={"format": {"type": "json_schema", "schema": _CUT_SCHEMA}},
         system=(
             "You are a JSON API for a video editing pipeline. "
-            "You MUST respond with ONLY a raw JSON array — no prose, no markdown, "
-            "no analysis, no explanations before or after. "
-            "Your entire response must be parseable by json.loads()."
+            "Respond with only the JSON object described by the schema — "
+            "no prose, no markdown, no analysis before or after."
         ),
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = resp.content[0].text.strip()
+    # Select the text block by type — content[0] is a ThinkingBlock on models
+    # that think by default, so indexing position 0 raises AttributeError.
+    raw = next((b.text for b in resp.content if b.type == "text"), "").strip()
 
     # Strip markdown code fences
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
@@ -892,13 +976,24 @@ Beat labels: HOOK, POINT, EXAMPLE, INSIGHT, TRANSITION, CTA, CLOSING"""
         raise ValueError("Claude returned an incomplete JSON array")
 
     try:
-        json_str = _find_json_array(raw)
-        cuts = json.loads(json_str)
+        # output_config.format guarantees a schema-valid object, so this is the
+        # path that runs. The bracket-scan below stays as a safety net for a
+        # truncated reply or a model that slips past the constraint.
+        try:
+            cuts = json.loads(raw)["cuts"]
+        except Exception:
+            cuts = json.loads(_strip_leading_zero_numbers(_find_json_array(raw)))
     except Exception as parse_err:
+        # 600 chars is never enough to see the offending line — keep the whole reply.
+        raw_path = edit_dir / "cut_analysis_raw.txt"
+        raw_path.write_text(raw, encoding="utf-8")
+        truncated = resp.stop_reason == "max_tokens"
+        hint = " Response hit max_tokens — the array is incomplete." if truncated else ""
         preview = raw[:600].replace("\n", "\\n")
         raise ValueError(
-            f"Claude JSON parse failed ({parse_err}). "
-            f"Raw response (first 600 chars): {preview}"
+            f"Claude JSON parse failed ({parse_err}).{hint} "
+            f"Full response saved to {raw_path}. "
+            f"First 600 chars: {preview}"
         ) from parse_err
 
     valid = []
