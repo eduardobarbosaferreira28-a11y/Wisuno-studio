@@ -161,7 +161,7 @@ def generate_slide_images(
         print("\n[3/5] Generating images via Higgsfield Seedream v4...")
     else:
         _gen_bg = generate_background_image
-        print("\n[3/5] Generating images via Gemini Imagen...")
+        print("\n[3/5] Generating images via Gemini...")
     slide_images: dict[int, str] = {}
 
     for slide in script.get("slides", []):

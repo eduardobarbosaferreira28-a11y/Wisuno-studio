@@ -100,6 +100,10 @@ ANTHROPIC_MODEL    = "claude-sonnet-4-6"
 # default, so read the text block by type — content[0] is a ThinkingBlock.
 ANTHROPIC_STRUCTURED_MODEL = "claude-sonnet-5"
 GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
+# Carousel slide backgrounds. Imagen `predict` models are no longer served on
+# the Gemini API key, so this goes through generateContent; 3.1-flash-image
+# returns JPEG natively.
+GEMINI_BG_IMAGE_MODEL = "gemini-3.1-flash-image"
 
 # ── Article extraction ────────────────────────────────────────────────────────
 MAX_ARTICLE_CHARS = 8_000
