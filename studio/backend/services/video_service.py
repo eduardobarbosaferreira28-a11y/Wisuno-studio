@@ -8,15 +8,13 @@ Video pipeline service — 14-step spec per ANTIGRAVITY_REBUILD.md
   STEP 2 — Pack transcript to phrase-level markdown
   STEP 3 — AI cut analysis via Claude (returns proposed EDL ranges)
   STEP 4 — [Waiting for human approval]
-  STEP 5 — Render:
-      A  Build EDL + karaoke ASS subtitles
-      B  Extract graded segments
-      C  Concat → base.mp4
-      D  Render HyperFrames overlays (captions, 3 slides, disclaimer, outro)
-      E  Build final edl.json with all overlays
-      F  Composite via render.py (graded + overlays + 2-pass loudnorm)
-      G  Generate background music (ElevenLabs /v1/music)
-      H  Mix audio (amix normalize=0) → final_music.mp4
+  STEP 5 — Render (helpers/motion_layer.py):
+      1  Build EDL, extract graded segments, concat → base.mp4
+      2  One Claude call plans motion scenes + music prompt + metadata
+      3  Render ONE HyperFrames motion layer (scenes, captions, disclaimer,
+         outro) while ElevenLabs generates music in parallel
+      4  compose_final: single ffmpeg pass (overlay + ducked music + loudnorm)
+         → final_music.mp4
 
 All output goes to:  wisuno-carousel/output/video/<slug>/edit/
 """
@@ -307,295 +305,73 @@ def _run_render(
     grade:            str  = "neutral_punch",
     include_music:    bool = True,
     include_graphics: bool = True,
+    coverage:         str  = "beats",   # "beats" = graphics on key moments, "full" = back to back
 ):
     job = _jobs[job_id]
     try:
-        portrait_path = Path(job.get("portrait_path") or job["video_path"])
-        edit_dir      = Path(job["edit_dir"])
-        cuts          = job["approved_cuts"]
-        probe         = job.get("probe") or {}
-        vid_fps       = int(probe.get("fps") or 30)
-        # Exact (unrounded) source rate. Captions/slides snap their output-timeline
+        from helpers.hf_render import check_hyperframes
+        from helpers.motion_layer import (
+            OUTRO_DUR, compose_final, plan_motion, remap_words, render_motion_layer,
+        )
+        from render import extract_all_segments, concat_segments
+        from config import ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL
+
+        job["status"] = "rendering"
+        _step_start(job, 5)
+        check_hyperframes()   # hard fail per spec
+
+        portrait = Path(job.get("portrait_path") or job["video_path"])
+        edit_dir = Path(job["edit_dir"])
+        cuts     = job["approved_cuts"]
+        # Exact (unrounded) source rate. Captions/scenes snap their output-timeline
         # math to this same frame grid as the extracted base video, so they stay
         # locked to the speaker instead of drifting later as the edit progresses.
-        fps_exact     = float(probe.get("fps_exact") or 0.0)
-        job["status"] = "rendering"
+        fps      = float((job.get("probe") or {}).get("fps_exact") or 0.0)
+        note     = lambda s: job["steps"][5].__setitem__("note", s)
 
-        _step_start(job, 5)
+        snap = lambda d: round(d * fps) / fps if fps > 0 else d
+        edit_duration = sum(snap(float(c["end"]) - float(c["start"])) for c in cuts)
+        transcript_json = edit_dir / "transcripts" / f"{portrait.stem}.json"
+        if not transcript_json.exists():
+            transcript_json = next((edit_dir / "transcripts").glob("*.json"))
 
-        # Verify HyperFrames is available (hard fail per spec)
-        from helpers.hf_render import check_hyperframes
-        check_hyperframes()
-
-        # Import render helpers from video-use
-        sys.path.insert(0, str(HELPERS_DIR))
-        from render import (
-            extract_all_segments,
-            concat_segments,
-            apply_loudnorm_two_pass,
-        )
-        from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
-
-        # ── A: Build initial EDL (no overlays yet) ─────────────────────────────
-        job["steps"][5]["note"] = "[1/8] Building EDL…"
-        edl = {
-            "version":  1,
-            "sources":  {portrait_path.stem: str(portrait_path)},
-            "ranges":   cuts,
-            "grade":    grade,
-            "overlays": [],
-        }
+        # 1 — cut + grade + concat → base.mp4
+        note("[1/4] Cutting and grading segments…")
+        edl = {"version": 1, "sources": {portrait.stem: str(portrait)},
+               "ranges": cuts, "grade": grade, "overlays": []}
         edl_path = edit_dir / "edl.json"
         edl_path.write_text(json.dumps(edl, indent=2))
         job["edl_path"] = str(edl_path)
-
-        # Calculate edit duration (sum of approved cut durations). Snap each cut
-        # to a whole frame so this total matches the frame-locked base video that
-        # extract_segment renders — keeps overlays/music aligned to the real edit.
-        def _snap(d: float) -> float:
-            return round(d * fps_exact) / fps_exact if fps_exact > 0 else d
-        edit_duration = sum(_snap(float(c["end"]) - float(c["start"])) for c in cuts)
-
-        # ── B: Build karaoke ASS subtitles ─────────────────────────────────────
-        job["steps"][5]["note"] = "[2/8] Building karaoke subtitles…"
-        transcript_json = edit_dir / "transcripts" / f"{portrait_path.stem}.json"
-        # Also check original stem if portrait stem doesn't match
-        if not transcript_json.exists():
-            jsons = list((edit_dir / "transcripts").glob("*.json"))
-            transcript_json = jsons[0] if jsons else transcript_json
-
-        ass_path = edit_dir / "master.ass"
-        # We don't know slide positions yet — build ASS without skipping (we'll refine if needed)
-        from helpers.build_karaoke_ass import build_karaoke_ass
-        build_karaoke_ass(
-            transcript_json=transcript_json,
-            ranges=cuts,
-            slide_windows=[],   # filled in after graphic slides are placed
-            output_path=ass_path,
-            edit_duration_s=edit_duration,
-            fps=fps_exact,
-        )
-
-        # ── C: Extract graded segments + concat → base.mp4 ────────────────────
-        job["steps"][5]["note"] = "[3/8] Extracting & concatenating segments…"
-        segment_paths = extract_all_segments(edl, edit_dir, preview=False)
-        base_path = edit_dir / "base.mp4"
-        concat_segments(segment_paths, base_path, edit_dir)
+        base = edit_dir / "base.mp4"
+        concat_segments(extract_all_segments(edl, edit_dir, preview=False), base, edit_dir)
         gc.collect()  # Free memory before HyperFrames renders
 
-        # ── D: Render HyperFrames overlays (sequentially) ─────────────────────
-        from helpers.build_overlays import (
-            build_caption_overlay,
-            build_graphic_slides,
-            build_disclaimer_overlay,
-            build_outro,
-        )
+        # 2 — one Claude call plans scenes, music and metadata
+        note("[2/4] Planning scenes (Claude)…")
+        words = remap_words(transcript_json, cuts, fps)
+        plan  = plan_motion(words, ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL, coverage=coverage)
+        job["metadata_content"] = plan["metadata"]
+        (edit_dir / "metadata.json").write_text(
+            json.dumps(plan["metadata"], indent=2, ensure_ascii=False), encoding="utf-8")
+        job["metadata_local"] = str(edit_dir / "metadata.json")
 
-        overlays = []  # list of overlay dicts for final EDL
-
-        # Note: We now build caption overlays AFTER graphic slides so we know
-        # the exact slide windows to skip. We initialize it empty here.
-        cap_overlay_path = None
-
-        # D2 — Graphic slides (3 × 4s opaque MP4)
-        slide_overlays = []
-        if include_graphics and transcript_json.exists():
-            job["steps"][5]["note"] = "[5/8] Rendering AI graphic slides (HyperFrames)…"
-            packed_md_text = (edit_dir / "takes_packed.md").read_text(encoding="utf-8") \
-                if (edit_dir / "takes_packed.md").exists() else ""
-            try:
-                slide_overlays = build_graphic_slides(
-                    packed_md=packed_md_text,
-                    transcript_json=transcript_json,
-                    ranges=cuts,
-                    edit_dir=edit_dir,
-                    anthropic_api_key=ANTHROPIC_API_KEY,
-                    anthropic_model=ANTHROPIC_MODEL,
-                    fps=fps_exact,
-                )
-                for so in slide_overlays:
-                    overlays.append({
-                        "file":            so["file"],
-                        "start_in_output": so["start_in_output"],
-                        "duration":        4.0,
-                    })
-
-                # Rebuild ASS skipping words that fall inside slide windows
-                slide_windows = [
-                    (so["start_in_output"], so["start_in_output"] + 4.0)
-                    for so in slide_overlays
-                ]
-                build_karaoke_ass(
-                    transcript_json=transcript_json,
-                    ranges=cuts,
-                    slide_windows=slide_windows,
-                    output_path=ass_path,
-                    edit_duration_s=edit_duration,
-                    fps=fps_exact,
-                )
-                # We will render captions next using exact timestamps
-            except Exception as gfx_err:
-                print(f"[video_service] Graphic slides failed: {gfx_err}")
-                raise  # hard fail per spec
-
-        job["steps"][5]["note"] = "[4/8] Rendering UI overlays (HyperFrames)…"
-        slide_windows = [
-            (so["start_in_output"], so["start_in_output"] + 4.0)
-            for so in slide_overlays
-        ] if slide_overlays else []
-
-        def _do_captions():
-            if transcript_json.exists():
-                return build_caption_overlay(transcript_json, cuts, slide_windows, edit_dir, edit_duration, fps=fps_exact)
-            return None
-
-        def _do_disclaimer():
-            return build_disclaimer_overlay(edit_dir, edit_duration)
-
-        def _do_outro():
-            return build_outro(edit_dir)
-
-        def _do_metadata():
-            try:
-                md_path = edit_dir / "takes_packed.md"
-                md_text = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
-                if not md_text:
-                    return {"title": "Error", "caption": "takes_packed.md not found", "hashtags": []}
-                out_path = edit_dir / "metadata.json"
-                return _generate_video_metadata(md_text, out_path)
-            except Exception as e:
-                import traceback
-                print(f"[video_service] Metadata generation failed: {e}")
-                return {"title": "Generation Failed", "caption": str(e), "hashtags": []}
-
-        # Start metadata generation concurrently
-        meta_executor = ThreadPoolExecutor(max_workers=1)
-        fut_meta = meta_executor.submit(_do_metadata)
-
-        # Run UI renders sequentially to conserve memory (Chromium is heavy)
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            fut_cap  = executor.submit(_do_captions)
-            fut_disc = executor.submit(_do_disclaimer)
-            fut_out  = executor.submit(_do_outro)
-            
-            cap_overlay_path = fut_cap.result()
-            disc_overlay_path = fut_disc.result()
-            outro_path = fut_out.result()
-            
-        metadata = fut_meta.result()
-        if metadata:
-            job["metadata_content"] = metadata
-            job["metadata_local"] = str(edit_dir / "metadata.json")
-
-        if cap_overlay_path:
-            overlays.insert(0, {
-                "file":            str(cap_overlay_path.relative_to(edit_dir)),
-                "start_in_output": 0.0,
-                "duration":        edit_duration,
-            })
-
-        overlays.append({
-            "file":            str(disc_overlay_path.relative_to(edit_dir)),
-            "start_in_output": 0.0,
-            "duration":        edit_duration,
-        })
-
-        overlays.append({
-            "file":            str(outro_path.relative_to(edit_dir)),
-            "start_in_output": edit_duration,
-            "duration":        5.0,
-        })
+        # 3 — music (network-bound) runs while Chromium renders the motion layer.
+        #     overlays/motion/preview.html is written before the render starts.
+        note("[3/4] Rendering scenes + generating music…")
+        music = edit_dir / "music.mp3" if include_music else None
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            fut_music = pool.submit(_generate_music, edit_duration + OUTRO_DUR, music,
+                                    plan["music"]["prompt"]) if music else None
+            overlay, _ = render_motion_layer(edit_dir, words, plan, edit_duration, fps,
+                                             coverage=coverage, include_graphics=include_graphics)
+            if fut_music:
+                fut_music.result()
         gc.collect()
 
-        # ── E: Update EDL with all overlays ────────────────────────────────────
-        job["steps"][5]["note"] = "[6/8] Writing final EDL with overlays…"
-        edl["overlays"] = overlays
-        edl_path.write_text(json.dumps(edl, indent=2))
-
-        # ── F: Render composite (Single Pass) ─────────────────────────────────
-        # Since we are on Railway Hobby with 8GB RAM, we can run all overlays
-        # in a single FFmpeg pass, halving the compositing time.
-        gc.collect()
-        job["steps"][5]["note"] = "[6/8] Compositing all overlays in a single pass…"
-
-        final_composite_path = edit_dir / "final.mp4"
-        out_tmp = edit_dir / "_composite.mp4"
-        inputs = ["-i", str(base_path)]
-        filter_parts = []
-        current_label = "[0:v]"
-
-        for idx, ov in enumerate(overlays):
-            ov_file = (edit_dir / ov["file"]).resolve()
-            inputs += ["-i", str(ov_file)]
-            stream_idx = idx + 1
-            t_start = float(ov["start_in_output"])
-            t_end   = t_start + float(ov["duration"])
-            
-            # For overlay inputs that have no explicit duration, we just enable='gte(...)'
-            # But we must offset their PTS so they actually start at t_start
-            filter_parts.append(
-                f"[{stream_idx}:v]setpts=PTS-STARTPTS+{t_start}/TB[a{stream_idx}]"
-            )
-            next_label = f"[v{stream_idx}]"
-            filter_parts.append(
-                f"{current_label}[a{stream_idx}]overlay="
-                f"enable='between(t,{t_start:.3f},{t_end:.3f})'{next_label}"
-            )
-            current_label = next_label
-
-        if not filter_parts:
-            # If no overlays at all, just copy
-            import shutil
-            shutil.copy2(base_path, final_composite_path)
-        else:
-            filter_parts.append(f"{current_label}null[outv]")
-            filter_complex = ";".join(filter_parts)
-
-            cmd = [
-                "ffmpeg", "-y",
-                *inputs,
-                "-filter_complex", filter_complex,
-                "-map", "[outv]", "-map", "0:a",
-                "-c:v", "libx264", "-preset", "fast", "-crf", "22",
-                "-pix_fmt", "yuv420p",
-                "-c:a", "copy",
-                "-max_muxing_queue_size", "512",
-                "-movflags", "+faststart",
-                str(out_tmp),
-            ]
-            subprocess.run(cmd, check=True, capture_output=True)
-            out_tmp.rename(final_composite_path)
-
-        gc.collect()
-        job["steps"][5]["note"] = "[6/8] Loudness normalization…"
-        normalised = edit_dir / "normalised.mp4"
-        apply_loudnorm_two_pass(final_composite_path, normalised, preview=False)
-        final_composite_path.unlink(missing_ok=True)
-        normalised.rename(final_composite_path)
-
-        # ── G: Generate background music ───────────────────────────────────────
-        music_final_path = None
-        if include_music:
-            job["steps"][5]["note"] = "[7/8] Generating background music (ElevenLabs)…"
-            try:
-                music_raw  = edit_dir / "music_news_raw.mp3"
-                music_proc = edit_dir / "music_news.mp3"
-                _generate_music(edit_duration, music_raw)
-                _process_music(music_raw, music_proc, edit_duration)
-                music_final_path = music_proc
-            except Exception as mus_err:
-                print(f"[video_service] Music generation failed: {mus_err}")
-                raise  # hard fail
-
-        # ── H: Mix audio → final_music.mp4 ────────────────────────────────────
+        # 4 — single encode: overlay + held outro frame + ducked music + loudnorm
+        note("[4/4] Compositing, mixing and loudness…")
         output_path = edit_dir / "final_music.mp4"
-        if music_final_path and music_final_path.exists():
-            job["steps"][5]["note"] = "[8/8] Mixing audio…"
-            _mix_audio(final_composite_path, music_final_path, output_path)
-        else:
-            # No music — just copy final.mp4 as the deliverable
-            import shutil
-            shutil.copy2(str(final_composite_path), str(output_path))
+        compose_final(base, overlay, music, output_path, fps, edit_duration)
 
         job["render_path"] = str(output_path)
         size_mb = output_path.stat().st_size / (1024 * 1024)
@@ -606,10 +382,10 @@ def _run_render(
         try:
             from services.history_service import log_job
             from services.supabase_client import upload_to_storage
-            
+
             public_url = upload_to_storage("wisuno-assets", f"videos/{job_id}/final_music.mp4", str(output_path), "video/mp4")
             url_to_use = public_url if public_url else f"/api/video/download/{job_id}"
-            
+
             meta_url_to_use = None
             if job.get("metadata_local") and Path(job["metadata_local"]).exists():
                 meta_public = upload_to_storage("wisuno-assets", f"videos/{job_id}/caption.txt", job["metadata_local"], "application/json")
@@ -631,7 +407,7 @@ def _run_render(
         job["error"]  = str(exc)
         _step_error(job, 5, str(exc))
         print(f"[video_service] Render {job_id} failed:\n{tb}")
-        
+
         # Log error history
         try:
             log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc)}, user_id=job.get("user_id"))
@@ -641,8 +417,11 @@ def _run_render(
 
 # ── Music helpers ─────────────────────────────────────────────────────────────
 
-def _generate_music(edit_duration: float, out_path: Path) -> None:
-    """Call ElevenLabs /v1/music with exact duration."""
+def _generate_music(duration: float, out_path: Path, prompt: str) -> None:
+    """Call ElevenLabs /v1/music with exact duration and the motion plan's prompt.
+
+    Volume, fades and ducking under the voice are applied later in compose_final.
+    """
     import os
     from dotenv import load_dotenv
     load_dotenv(PROJECT_ROOT / ".env")
@@ -653,16 +432,10 @@ def _generate_music(edit_duration: float, out_path: Path) -> None:
     from elevenlabs.client import ElevenLabs
     client = ElevenLabs(api_key=api_key)
 
-    dur_secs = int(edit_duration)
-    prompt = (
-        f"news broadcast background music for a {dur_secs} second video, "
-        "professional corporate news intro, dramatic orchestral strings with brass, "
-        "urgent and dynamic, breaking news style, cinematic instrumental"
-    )
     audio = client.music.compose(
         prompt=prompt,
         model_id="music_v1",
-        music_length_ms=int(edit_duration * 1000),
+        music_length_ms=int(duration * 1000),
         force_instrumental=True,
     )
     # audio is a generator of bytes
@@ -671,47 +444,6 @@ def _generate_music(edit_duration: float, out_path: Path) -> None:
         if isinstance(chunk, bytes):
             raw += chunk
     out_path.write_bytes(raw)
-
-
-def _process_music(raw_mp3: Path, out_mp3: Path, edit_duration: float) -> None:
-    """
-    Apply volume (-18 dB = 0.126), 1s fade-in, 0.5s fade-out at edit_duration.
-    Spec: volume=0.126, afade=t=in:st=0:d=1, afade=t=out:st=<edit_dur-0.5>:d=0.5
-    """
-    fade_out_start = max(0.0, edit_duration - 0.5)
-    af = (
-        f"volume=0.126,"
-        f"afade=t=in:st=0:d=1,"
-        f"afade=t=out:st={fade_out_start:.3f}:d=0.5"
-    )
-    subprocess.run([
-        "ffmpeg", "-y", "-i", str(raw_mp3),
-        "-af", af,
-        str(out_mp3),
-    ], check=True, capture_output=True)
-
-
-def _mix_audio(video_path: Path, music_path: Path, out_path: Path) -> None:
-    """
-    Mix voice + music using amix normalize=0.
-    Forces mono output (-ac 1) to fix L/R ear splitting from mono/stereo mismatch.
-    """
-    filter_complex = (
-        "[1:a]volume=0.08[music];"
-        "[0:a][music]amix=inputs=2:duration=first:normalize=0[aout]"
-    )
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-i", str(video_path),
-        "-i", str(music_path),
-        "-filter_complex", filter_complex,
-        "-map", "0:v",
-        "-map", "[aout]",
-        "-c:v", "copy",
-        "-c:a", "aac", "-b:a", "192k", "-ac", "1",
-        "-movflags", "+faststart",
-        str(out_path),
-    ], check=True, capture_output=True)
 
 
 # ── Helper functions ───────────────────────────────────────────────────────────
