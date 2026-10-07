@@ -42,6 +42,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # to seek by absolute seconds. Bump deliberately, never accidentally.
 RUN npm install -g hyperframes@0.7.18
 
+# Assert the runtime manifest landed next to the CLI. Without it every render dies
+# with "[HyperframeRuntimeLoader] Missing manifest at /usr/lib/core/dist/..." (seen
+# on the 2026-10-07 rebuild). Prints the install layout so a failure is diagnosable
+# from the build log alone.
+RUN node -v && npm -v && npm root -g \
+    && readlink -f "$(command -v hyperframes)" \
+    && ls -la "$(npm root -g)/hyperframes/dist" \
+    && test -f "$(npm root -g)/hyperframes/dist/hyperframe.manifest.json"
+
 # Download chrome-headless-shell at BUILD time so it lives in the image layer.
 # Otherwise the first render shells out to fetch 114 MB of Chrome inside a request,
 # into a cache that no volume backs — so it re-downloads on every restart, and the

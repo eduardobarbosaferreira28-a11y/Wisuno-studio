@@ -380,7 +380,6 @@ def _run_render(
 
         # Upload to Storage and Log history
         try:
-            from services.history_service import log_job
             from services.supabase_client import upload_to_storage
 
             public_url = upload_to_storage("wisuno-assets", f"videos/{job_id}/final_music.mp4", str(output_path), "video/mp4")
