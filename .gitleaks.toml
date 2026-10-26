@@ -1,0 +1,10 @@
+title = "Wisuno gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Supabase publishable (anon) key default in config.py. Public by design; never the service-role key (AGENTS.md rule 6)."
+condition = "AND"
+paths = ['''^config\.py$''']
+regexes = ['''sb_publishable_[A-Za-z0-9_\-]+''']
