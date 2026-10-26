@@ -95,7 +95,15 @@ HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")
 SUPABASE_URL       = os.getenv("SUPABASE_URL", "https://wkfwjdwjpavgzugwcgte.supabase.co")
 SUPABASE_ANON_KEY  = os.getenv("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
 ANTHROPIC_MODEL    = "claude-sonnet-4-6"
+# Used only where the reply must be schema-valid JSON (output_config.format),
+# which claude-sonnet-4-6 does not support. Note it runs adaptive thinking by
+# default, so read the text block by type — content[0] is a ThinkingBlock.
+ANTHROPIC_STRUCTURED_MODEL = "claude-sonnet-5"
 GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
+# Carousel slide backgrounds. Imagen `predict` models are no longer served on
+# the Gemini API key, so this goes through generateContent; 3.1-flash-image
+# returns JPEG natively.
+GEMINI_BG_IMAGE_MODEL = "gemini-3.1-flash-image"
 
 # ── Article extraction ────────────────────────────────────────────────────────
 MAX_ARTICLE_CHARS = 8_000
