@@ -1,7 +1,9 @@
-# Wisuno Carousel Automation — Claude Code Instructions
+# Wisuno Carousel — Template Reference
 
 ## Project Overview
 This project automates Instagram carousel creation for Wisuno (multi-regulated CFD broker). Given a news article URL or raw text, the workflow produces a self-contained swipeable HTML carousel and an Instagram caption file. **Canva MCP is no longer used.**
+
+> **Note:** the Studio web app under `studio/` reuses this pipeline (`html_carousel.py`, `swipeable_carousel.py`, `image_generator.py`, `chart_renderer.py`). The design rules below apply to every carousel it produces. See [ARCHITECTURE.md](ARCHITECTURE.md) for the app itself.
 
 ## Design Template (Ground Truth)
 
@@ -14,12 +16,12 @@ If there is ever a visual discrepancy between a newly generated carousel and the
 ## Main Entry Point
 
 ```
-python html_carousel.py --url https://...          # full run with Gemini image
-python html_carousel.py --url https://... --no-images  # skip Gemini, plain dark bg
-python html_carousel.py --script output/foo/script.json  # re-render from saved script
+python html_carousel.py --url https://...  [--slides 6] [--no-images]
+python html_carousel.py --text "raw text"  [--slides 6] [--no-images]
+python html_carousel.py --script output/foo/script.json [--no-images]   # re-render from saved script
 ```
 
-Output goes to `output/<slugified-title>/`.
+`--no-images` skips Gemini and uses a plain dark background. Output goes to `output/<slugified-title>/`: `script.json` (English source), `script_{zh-TW,zh-CN,th}.json`, `caption_{en,zh-TW,zh-CN,th}.txt`, `images/`, and one carousel per language: `carousel_{en,zh-TW,zh-CN,th}.html`.
 
 ---
 
@@ -27,8 +29,9 @@ Output goes to `output/<slugified-title>/`.
 
 1. **Extract article** — `content_extractor.py` (`extract_from_url` or `extract_from_text`)
 2. **Generate script** — Claude API with `prompts/script_prompt.txt`, substituting config values from `config.py` (MIN_SLIDES, MAX_SLIDES, DEFAULT_SLIDES, DISCLAIMER)
-3. **Generate images** — Gemini Imagen 4 via `image_generator.py` (cover bg + chart slides); cached to `images/` to avoid repeat API calls
-4. **Build carousel** — `swipeable_carousel.build_swipeable_html(script, slide_images)` → single self-contained `carousel.html`
+3. **Generate images** — Gemini via `image_generator.py` (cover bg + slide backgrounds); cached to `images/` to avoid repeat API calls. Chart slides are plotted from a live yfinance series by `chart_renderer.py` (using the script's `chart_symbol`), falling back to a static SVG
+4. **Translate** — script is translated into zh-TW, zh-CN and th via Claude (words in `data_points[].value` are translated, numbers kept)
+5. **Build carousels** — `swipeable_carousel.build_swipeable_html(script, slide_images)` → one self-contained `carousel_<lang>.html` per language
 
 ---
 
@@ -39,7 +42,9 @@ Output goes to `output/<slugified-title>/`.
 | `html_carousel.py` | Main pipeline orchestrator (CLI entry point) |
 | `swipeable_carousel.py` | HTML carousel renderer + CLI for re-rendering from script.json |
 | `test_swipeable.py` | Test runner with hardcoded CPI script (no Claude API call) |
-| `image_generator.py` | Gemini Imagen 4 wrapper for cover + chart images |
+| `studio/` | Web app that reuses this pipeline (see ARCHITECTURE.md) |
+| `image_generator.py` | Gemini wrapper for cover + slide background images |
+| `chart_renderer.py` | Live yfinance chart_slide renderer (brand SVG) |
 | `content_extractor.py` | Article text extraction from URL or raw text |
 | `config.py` | API keys, brand config, slide count limits, DISCLAIMER |
 | `prompts/script_prompt.txt` | Claude prompt template for script generation |
@@ -86,7 +91,7 @@ Logo: `Wisuno Logo/White-Colored.png` — embedded as base64 data URI in every s
 | `data_slide` | Key numbers — stat list with labels, values, UP/DOWN/FLAT arrows |
 | `analysis_slide` | Market mechanics — 2–3 short paragraphs explaining "why it matters" |
 | `quote_slide` | Human voice — sourced quote or editorial, centered on dark bg |
-| `chart_slide` | Visualization — Gemini chart image or SVG fallback |
+| `chart_slide` | Visualization — live yfinance price chart (brand SVG), static SVG fallback |
 | `cta_slide` | Convert — fixed brand copy, always the last slide |
 
 Slide count variants (MIN_SLIDES=4, MAX_SLIDES=8, DEFAULT_SLIDES=6):

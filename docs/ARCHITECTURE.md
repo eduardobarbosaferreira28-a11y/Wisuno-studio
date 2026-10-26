@@ -1,9 +1,6 @@
-# Project Memory — Wisuno Studio (in-depth app summary)
+# Architecture — Wisuno Studio
 
-> Human-readable project memory kept **inside the repo** so it's visible in the IDE explorer.
-> Claude Code's auto-recall reads a mirror from your user profile at
-> `%USERPROFILE%\.claude\projects\c--Users-Eduardo-Desktop-Triache-Marketing-wisuno-carousel\memory\`.
-> If you edit this file, tell Claude to "sync memory" so the profile copy updates too.
+> Human-readable in-depth summary of the app, kept inside the repo.
 
 ---
 
