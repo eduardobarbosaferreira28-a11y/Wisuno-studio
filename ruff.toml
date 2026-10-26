@@ -1,6 +1,35 @@
 target-version = "py312"
 line-length = 110
-extend-exclude = ["studio/repos", ".venv"]
+extend-exclude = ["studio/repos", ".venv", "implementation_plan.md"]  # last is UTF-16, not valid for ruff
 
 [lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[lint.flake8-bugbear]
+# FastAPI dependency markers are meant to be used as argument defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Query",
+    "fastapi.Security",
+]
+
+[lint.per-file-ignores]
+# Long lines are inline HTML/CSS/JS/prompt strings; wrapping them would change output.
+"studio/backend/helpers/motion_layer.py" = ["E501", "B905"]
+"studio/backend/helpers/build_overlays.py" = ["E501"]
+"studio/backend/helpers/build_karaoke_ass.py" = ["E501"]
+"studio/backend/routers/*.py" = ["E501", "B904"]
+"studio/backend/services/video_service.py" = ["E501", "E402", "E731", "B905"]
+"studio/backend/services/video_overlays.py" = ["E501", "E741", "F401", "B905"]
+"studio/backend/app.py" = ["E501", "E402"]
+"studio/backend/dependencies/auth.py" = ["E501", "B904"]
+"canva_builder.py" = ["E501"]
+"swipeable_carousel.py" = ["E501"]  # layout is locked (AGENTS.md rule 5)
+"html_carousel.py" = ["E501", "B007"]
+"slide_renderer.py" = ["E501"]
+"news_picker.py" = ["E501", "B005"]
+"generate_slide_images.py" = ["E501"]
+"carousel_agent.py" = ["E501"]
+"retry_utils.py" = ["UP047"]

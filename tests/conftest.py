@@ -129,3 +129,61 @@ def sample_script() -> dict:
             },
         ],
     }
+
+
+# ── Network guard ───────────────────────────────────────────────────────────────
+# Tests must never make live calls (AGENTS.md rule 3). Any connection or DNS lookup
+# to a non-loopback host fails the test, even if the code under test swallows the
+# error, because the attempt is recorded and asserted on at teardown. Tests of the
+# guard itself request `network_attempts` and clear it after asserting.
+
+_LOCAL_HOSTS = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0", "testserver"}
+
+
+class NetworkBlockedError(RuntimeError):
+    """Raised when a test tries to reach a non-loopback host."""
+
+
+def _is_local(host) -> bool:
+    if isinstance(host, bytes):
+        host = host.decode(errors="ignore")
+    if host is None:
+        return True
+    return host in _LOCAL_HOSTS or str(host).startswith("127.")
+
+
+@pytest.fixture(autouse=True)
+def network_attempts(monkeypatch):
+    import socket
+
+    attempts: list[str] = []
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+    real_getaddrinfo = socket.getaddrinfo
+
+    def _check(address) -> None:
+        # AF_UNIX addresses are str paths; AF_INET/INET6 are tuples (host, port, ...).
+        host = address[0] if isinstance(address, tuple) else None
+        if isinstance(address, tuple) and not _is_local(host):
+            attempts.append(str(host))
+            raise NetworkBlockedError(f"Test attempted a live network call to {host!r}; mock it.")
+
+    def guarded_connect(self, address):
+        _check(address)
+        return real_connect(self, address)
+
+    def guarded_connect_ex(self, address):
+        _check(address)
+        return real_connect_ex(self, address)
+
+    def guarded_getaddrinfo(host, *args, **kwargs):
+        if not _is_local(host):
+            attempts.append(str(host))
+            raise NetworkBlockedError(f"Test attempted a DNS lookup for {host!r}; mock it.")
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
+    monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
+    yield attempts
+    assert not attempts, f"Live network access attempted during test: {attempts}"
