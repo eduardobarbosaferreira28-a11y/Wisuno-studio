@@ -18,4 +18,8 @@ node_modules
 .vscode
 .claude
 CLAUDE.md
+AGENTS.md
+docs/
+tasks/
+.agents/
 *.log
