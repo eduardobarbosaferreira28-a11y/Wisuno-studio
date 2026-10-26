@@ -8,6 +8,7 @@ SETUP (one-time):
   pip install playwright
   playwright install chromium
 """
+
 from pathlib import Path
 
 
@@ -31,8 +32,7 @@ def export_slides_to_png(
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise RuntimeError(
-            "Playwright is not installed.\n"
-            "Run: pip install playwright && playwright install chromium"
+            "Playwright is not installed.\nRun: pip install playwright && playwright install chromium"
         ) from exc
 
     output_dir.mkdir(parents=True, exist_ok=True)

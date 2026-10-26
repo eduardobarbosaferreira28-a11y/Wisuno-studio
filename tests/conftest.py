@@ -6,6 +6,7 @@ Shared fixtures + import-path setup for the Wisuno Studio test suite.
 All tests run fully offline — no fixture here makes a real Anthropic/Gemini/HTTP
 call. Tests that exercise AI code paths inject a FakeAnthropicClient.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ for _p in (str(BACKEND_DIR), str(PROJECT_ROOT)):
 
 
 # ── Fake Anthropic client ───────────────────────────────────────────────────────
+
 
 class _FakeContentBlock:
     def __init__(self, text: str):
@@ -58,12 +60,15 @@ class FakeAnthropicClient:
 @pytest.fixture
 def fake_anthropic():
     """Factory: fake_anthropic([resp1, resp2, ...]) -> FakeAnthropicClient."""
+
     def _make(responses: list[str]) -> FakeAnthropicClient:
         return FakeAnthropicClient(responses)
+
     return _make
 
 
 # ── Sample carousel script (covers the core slide types) ─────────────────────────
+
 
 @pytest.fixture
 def sample_script() -> dict:

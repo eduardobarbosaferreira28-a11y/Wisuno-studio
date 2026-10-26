@@ -6,6 +6,7 @@ with per-step progress tracking and multi-language support.
 
 Supports 7 languages: en, zh-TW, zh-CN, th, sw (Kiswahili), pt-BR (Brazilian Portuguese), vi (Vietnamese)
 """
+
 from __future__ import annotations
 
 import json
@@ -19,8 +20,8 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-BACKEND_DIR  = Path(__file__).parent.parent
-PROJECT_ROOT = BACKEND_DIR.parent.parent          # wisuno-carousel/
+BACKEND_DIR = Path(__file__).parent.parent
+PROJECT_ROOT = BACKEND_DIR.parent.parent  # wisuno-carousel/
 
 for p in (str(BACKEND_DIR), str(PROJECT_ROOT)):
     if p not in sys.path:
@@ -30,23 +31,23 @@ for p in (str(BACKEND_DIR), str(PROJECT_ROOT)):
 # (imported inside functions to avoid import errors at module load time)
 
 ALL_LANGUAGES = {
-    "en":    "English",
+    "en": "English",
     "zh-TW": "Traditional Chinese (繁體中文)",
     "zh-CN": "Simplified Chinese (简体中文)",
-    "th":    "Thai (ภาษาไทย)",
-    "sw":    "Kiswahili",
+    "th": "Thai (ภาษาไทย)",
+    "sw": "Kiswahili",
     "pt-BR": "Brazilian Portuguese (Português do Brasil)",
-    "vi":    "Vietnamese (Tiếng Việt)",
+    "vi": "Vietnamese (Tiếng Việt)",
 }
 
 LANGUAGE_FLAGS = {
-    "en":    "🇬🇧",
+    "en": "🇬🇧",
     "zh-TW": "🇹🇼",
     "zh-CN": "🇨🇳",
-    "th":    "🇹🇭",
-    "sw":    "🇰🇪",
+    "th": "🇹🇭",
+    "sw": "🇰🇪",
     "pt-BR": "🇧🇷",
-    "vi":    "🇻🇳",
+    "vi": "🇻🇳",
 }
 
 STEP_LABELS = [
@@ -64,15 +65,15 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 def _make_job(languages: list[str], user_id: str | None = None) -> dict:
     return {
-        "status": "pending",   # pending | running | done | error
+        "status": "pending",  # pending | running | done | error
         "steps": [{"label": lbl, "status": "pending"} for lbl in STEP_LABELS],
         "current_step": -1,
         "languages": languages,
         "error": None,
-        "warnings": [],        # non-fatal issues (e.g. cloud upload failed)
+        "warnings": [],  # non-fatal issues (e.g. cloud upload failed)
         "output_dir": None,
-        "files": {},           # {lang_code: {carousel, caption, ...}}
-        "user_id": user_id,    # owning user (for per-user isolation)
+        "files": {},  # {lang_code: {carousel, caption, ...}}
+        "user_id": user_id,  # owning user (for per-user isolation)
     }
 
 
@@ -91,6 +92,7 @@ def _step_error(job: dict, idx: int, msg: str):
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 def start_job(
     *,
@@ -120,6 +122,7 @@ def list_recent(limit: int = 20) -> list[dict]:
 
 # ── Pipeline runner (executes in thread pool) ─────────────────────────────────
 
+
 def _run(job_id: str, url, text, num_slides, content_type, skip_images, languages):
     job = _jobs[job_id]
     job["status"] = "running"
@@ -128,7 +131,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         # ── Lazy imports ──────────────────────────────────────────────────────
         import html_carousel as _hc
         from config import OUTPUT_DIR
-        from content_extractor import extract_from_url, extract_from_text
+        from content_extractor import extract_from_text, extract_from_url
         from swipeable_carousel import build_swipeable_html
 
         # ── STEP 1 — Extract article ──────────────────────────────────────────
@@ -164,7 +167,7 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         if skip_images:
             slide_images: dict[int, str] = {}
             job["steps"][2]["status"] = "done"
-            job["steps"][2]["note"]   = "Skipped (skip_images=true)"
+            job["steps"][2]["note"] = "Skipped (skip_images=true)"
         else:
             images_dir.mkdir(parents=True, exist_ok=True)
             try:
@@ -198,37 +201,50 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
         for lang_code, script in scripts.items():
             html_content = build_swipeable_html(script, slide_images, language=lang_code)
             carousel_name = f"carousel_{lang_code}.html"
-            caption_name  = f"caption_{lang_code}.txt"
+            caption_name = f"caption_{lang_code}.txt"
             out_path = output_dir / carousel_name
             out_path.write_text(html_content, encoding="utf-8")
             files[lang_code] = {
-                "carousel_path":     str(out_path),
-                "caption_path":      str(output_dir / caption_name),
+                "carousel_path": str(out_path),
+                "caption_path": str(output_dir / caption_name),
                 "carousel_filename": carousel_name,
-                "caption_filename":  caption_name,
-                "size_kb":           round(len(html_content) / 1024),
-                "language_name":     ALL_LANGUAGES.get(lang_code, lang_code),
-                "flag":              LANGUAGE_FLAGS.get(lang_code, "🌐"),
+                "caption_filename": caption_name,
+                "size_kb": round(len(html_content) / 1024),
+                "language_name": ALL_LANGUAGES.get(lang_code, lang_code),
+                "flag": LANGUAGE_FLAGS.get(lang_code, "🌐"),
             }
         _step_done(job, 4)
 
         job["output_dir"] = str(output_dir)
-        job["files"]      = files
-        job["status"]     = "done"
-        
+        job["files"] = files
+        job["status"] = "done"
+
         # Log to history and Upload to Storage
         try:
             from services.history_service import log_job
             from services.supabase_client import upload_to_storage
+
             # build files summary
             file_links = []
             upload_failed = False
             for lc, f in files.items():
-                public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['carousel_filename']}", f["carousel_path"], "text/html")
+                public_url = upload_to_storage(
+                    "wisuno-assets",
+                    f"carousels/{job_id}/{f['carousel_filename']}",
+                    f["carousel_path"],
+                    "text/html",
+                )
                 url_to_use = public_url if public_url else f"/api/carousel/download/{job_id}/{lc}/carousel"
 
-                cap_public_url = upload_to_storage("wisuno-assets", f"carousels/{job_id}/{f['caption_filename']}", f["caption_path"], "text/plain")
-                cap_url_to_use = cap_public_url if cap_public_url else f"/api/carousel/download/{job_id}/{lc}/caption"
+                cap_public_url = upload_to_storage(
+                    "wisuno-assets",
+                    f"carousels/{job_id}/{f['caption_filename']}",
+                    f["caption_path"],
+                    "text/plain",
+                )
+                cap_url_to_use = (
+                    cap_public_url if cap_public_url else f"/api/carousel/download/{job_id}/{lc}/caption"
+                )
 
                 if not public_url or not cap_public_url:
                     upload_failed = True
@@ -243,23 +259,36 @@ def _run(job_id: str, url, text, num_slides, content_type, skip_images, language
                 )
                 logger.warning("[carousel_service] Job %s: cloud upload incomplete.", job_id)
 
-            log_job(job_id, "carousel", "done", {"topic": job.get("topic", "Carousel"), "files": file_links}, user_id=job.get("user_id"))
+            log_job(
+                job_id,
+                "carousel",
+                "done",
+                {"topic": job.get("topic", "Carousel"), "files": file_links},
+                user_id=job.get("user_id"),
+            )
         except Exception as e:
             logger.warning("[carousel_service] History log failed: %s", e)
 
     except Exception as exc:
         tb = traceback.format_exc()
         job["status"] = "error"
-        job["error"]  = str(exc)
+        job["error"] = str(exc)
         # Mark current running step as error
         for step in job["steps"]:
             if step["status"] == "running":
                 step["status"] = "error"
         logger.error("[carousel_service] Job %s failed:\n%s", job_id, tb)
-        
+
         # Log to history
         try:
             from services.history_service import log_job
-            log_job(job_id, "carousel", "error", {"topic": job.get("topic", "Carousel"), "error": str(exc)}, user_id=job.get("user_id"))
+
+            log_job(
+                job_id,
+                "carousel",
+                "error",
+                {"topic": job.get("topic", "Carousel"), "error": str(exc)},
+                user_id=job.get("user_id"),
+            )
         except Exception as log_err:
             logger.warning("[carousel_service] History log failed: %s", log_err)

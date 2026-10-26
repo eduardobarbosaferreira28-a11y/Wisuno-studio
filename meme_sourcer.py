@@ -1,6 +1,7 @@
 """
 Meme generation — uses Gemini 2.5 Flash Image to generate a financial reaction meme image (PNG).
 """
+
 from pathlib import Path
 
 from google import genai
@@ -9,12 +10,12 @@ from google.genai import types
 from config import GEMINI_API_KEY, GEMINI_IMAGE_MODEL
 
 _EMOTION_STYLE = {
-    "panic":     "a stressed trader watching red screens in chaos, wide-eyed panic energy",
-    "greed":     "an excited, money-hungry person with dollar signs in their eyes, rubbing hands",
+    "panic": "a stressed trader watching red screens in chaos, wide-eyed panic energy",
+    "greed": "an excited, money-hungry person with dollar signs in their eyes, rubbing hands",
     "confusion": "a confused person scratching their head surrounded by charts and question marks",
-    "calm":      "a completely unbothered, zen person relaxing while markets crash around them",
+    "calm": "a completely unbothered, zen person relaxing while markets crash around them",
     "disbelief": "a jaw-dropped person staring in shock at a trading screen",
-    "euphoria":  "a person celebrating wildly, throwing money, pure unhinged joy",
+    "euphoria": "a person celebrating wildly, throwing money, pure unhinged joy",
 }
 
 
@@ -52,10 +53,10 @@ def find_meme(query: str, output_dir: Path, emotion: str = "") -> dict:
             dest = output_dir / f"meme.{ext}"
             dest.write_bytes(part.inline_data.data)
             return {
-                "url":        None,
+                "url": None,
                 "local_path": dest,
-                "source":     "gemini",
-                "title":      query,
+                "source": "gemini",
+                "title": query,
             }
 
     raise RuntimeError(

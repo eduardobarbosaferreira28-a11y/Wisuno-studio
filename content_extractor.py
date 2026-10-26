@@ -1,9 +1,12 @@
 """
 Article content extraction — supports URL fetch or raw text passthrough.
 """
+
 import re
+
 import httpx
 from bs4 import BeautifulSoup
+
 from config import MAX_ARTICLE_CHARS, REQUEST_TIMEOUT
 from retry_utils import retry
 
@@ -35,8 +38,9 @@ def extract_from_url(url: str) -> str:
     soup = BeautifulSoup(response.text, "html.parser")
 
     # Remove noise elements
-    for tag in soup(["script", "style", "nav", "header", "footer",
-                     "aside", "form", "noscript", "iframe", "figure"]):
+    for tag in soup(
+        ["script", "style", "nav", "header", "footer", "aside", "form", "noscript", "iframe", "figure"]
+    ):
         tag.decompose()
 
     # Prefer article/main content containers
@@ -59,7 +63,7 @@ def extract_from_text(raw: str) -> str:
 def _clean(text: str) -> str:
     """Normalise whitespace and cap length."""
     lines = [ln.strip() for ln in text.splitlines()]
-    lines = [ln for ln in lines if len(ln) > 20]   # drop short/empty lines
+    lines = [ln for ln in lines if len(ln) > 20]  # drop short/empty lines
     cleaned = "\n".join(lines)
     if len(cleaned) > MAX_ARTICLE_CHARS:
         cleaned = cleaned[:MAX_ARTICLE_CHARS] + "\n[...truncated]"

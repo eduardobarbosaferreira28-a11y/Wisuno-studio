@@ -18,6 +18,7 @@ Video pipeline service — 14-step spec per ANTIGRAVITY_REBUILD.md
 
 All output goes to:  wisuno-carousel/output/video/<slug>/edit/
 """
+
 from __future__ import annotations
 
 import gc
@@ -35,12 +36,12 @@ from pathlib import Path
 os.environ.setdefault("MALLOC_ARENA_MAX", "2")
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-BACKEND_DIR   = Path(__file__).parent.parent
-STUDIO_DIR    = BACKEND_DIR.parent
-PROJECT_ROOT  = STUDIO_DIR.parent
+BACKEND_DIR = Path(__file__).parent.parent
+STUDIO_DIR = BACKEND_DIR.parent
+PROJECT_ROOT = STUDIO_DIR.parent
 VIDEO_USE_DIR = STUDIO_DIR / "repos" / "video-use"
-HELPERS_DIR   = VIDEO_USE_DIR / "helpers"
-MY_HELPERS    = BACKEND_DIR / "helpers"
+HELPERS_DIR = VIDEO_USE_DIR / "helpers"
+MY_HELPERS = BACKEND_DIR / "helpers"
 
 for _p in (str(BACKEND_DIR), str(PROJECT_ROOT), str(HELPERS_DIR), str(MY_HELPERS)):
     if _p not in sys.path:
@@ -56,8 +57,8 @@ VIDEO_OUTPUT_ROOT = PROJECT_ROOT / "output" / "video"
 # 3840×2160 Wisuno studio footage this reproduces the old fixed crop exactly
 # (a centred 1215×2160 window at x≈1312), while no longer crashing on other
 # resolutions the way the previous hard-coded 1215:2160:1312:0 crop did.
-PORTRAIT_OUT_W   = 1080
-PORTRAIT_OUT_H   = 1920
+PORTRAIT_OUT_W = 1080
+PORTRAIT_OUT_H = 1920
 
 STEP_LABELS = [
     "Probe + portrait crop",
@@ -75,22 +76,22 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 def _make_job(video_path: str, user_id: str | None = None) -> dict:
     return {
-        "status":        "pending",
-        "steps":         [{"label": lbl, "status": "pending"} for lbl in STEP_LABELS],
-        "current_step":  -1,
-        "video_path":    video_path,
-        "topic":         Path(video_path).stem,
-        "user_id":       user_id,   # owning user (for per-user isolation)
-        "portrait_path": None,   # path after portrait crop
-        "edit_dir":      None,
-        "probe":         None,
-        "transcript":    None,
-        "packed_md":     None,
+        "status": "pending",
+        "steps": [{"label": lbl, "status": "pending"} for lbl in STEP_LABELS],
+        "current_step": -1,
+        "video_path": video_path,
+        "topic": Path(video_path).stem,
+        "user_id": user_id,  # owning user (for per-user isolation)
+        "portrait_path": None,  # path after portrait crop
+        "edit_dir": None,
+        "probe": None,
+        "transcript": None,
+        "packed_md": None,
         "proposed_cuts": [],
         "approved_cuts": None,
-        "edl_path":      None,
-        "render_path":   None,
-        "error":         None,
+        "edl_path": None,
+        "render_path": None,
+        "error": None,
     }
 
 
@@ -107,10 +108,11 @@ def _step_done(job: dict, idx: int, note: str = ""):
 
 def _step_error(job: dict, idx: int, msg: str):
     job["steps"][idx]["status"] = "error"
-    job["steps"][idx]["error"]  = msg
+    job["steps"][idx]["error"] = msg
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
+
 
 def start_analysis(video_path: str, user_id: str | None = None) -> str:
     job_id = str(uuid.uuid4())
@@ -130,16 +132,16 @@ def approve_cuts(job_id: str, cuts: list[dict]) -> bool:
         return False
     job["approved_cuts"] = cuts
     job["steps"][4]["status"] = "done"
-    job["steps"][4]["note"]   = f"{len(cuts)} cut(s) approved"
+    job["steps"][4]["note"] = f"{len(cuts)} cut(s) approved"
     return True
 
 
 def start_render(
-    job_id:           str,
-    grade:            str   = "neutral_punch",
-    include_music:    bool  = True,
-    include_graphics: bool  = True,
-    retry_step:       int   | None = None,
+    job_id: str,
+    grade: str = "neutral_punch",
+    include_music: bool = True,
+    include_graphics: bool = True,
+    retry_step: int | None = None,
 ) -> bool:
     job = _jobs.get(job_id)
     if not job or job.get("approved_cuts") is None:
@@ -157,13 +159,14 @@ def start_render(
 
 # ── Analysis pipeline (steps 0–4) ─────────────────────────────────────────────
 
+
 def _run_analysis(job_id: str, video_path: str):
-    job   = _jobs[job_id]
+    job = _jobs[job_id]
     vpath = Path(video_path)
     job["status"] = "analysing"
 
     try:
-        slug     = re.sub(r"[^a-z0-9]+", "-", vpath.stem.lower()).strip("-") or "video"
+        slug = re.sub(r"[^a-z0-9]+", "-", vpath.stem.lower()).strip("-") or "video"
         edit_dir = VIDEO_OUTPUT_ROOT / slug / "edit"
         edit_dir.mkdir(parents=True, exist_ok=True)
         job["edit_dir"] = str(edit_dir)
@@ -173,9 +176,11 @@ def _run_analysis(job_id: str, video_path: str):
         probe = _probe_video(vpath)
         job["probe"] = probe
         w, h = probe.get("width") or 0, probe.get("height") or 0
-        print(f"[video_service] Analysis {job_id} source {vpath.name}: "
-              f"{w}×{h} {probe.get('codec','?')} {probe.get('fps','?')}fps "
-              f"{probe.get('duration',0):.1f}s {probe.get('size_mb','?')}MB")
+        print(
+            f"[video_service] Analysis {job_id} source {vpath.name}: "
+            f"{w}×{h} {probe.get('codec', '?')} {probe.get('fps', '?')}fps "
+            f"{probe.get('duration', 0):.1f}s {probe.get('size_mb', '?')}MB"
+        )
 
         # If already portrait (1080×1920), skip crop
         if w == PORTRAIT_OUT_W and h == PORTRAIT_OUT_H:
@@ -192,7 +197,7 @@ def _run_analysis(job_id: str, video_path: str):
         probe = _probe_video(portrait_path)
         job["probe"] = probe
         dur_s = probe.get("duration", 0)
-        _step_done(job, 0, f"{crop_note} · {dur_s:.1f}s · {probe.get('fps','?')} fps")
+        _step_done(job, 0, f"{crop_note} · {dur_s:.1f}s · {probe.get('fps', '?')} fps")
 
         # STEP 1 — Transcribe (uses original vpath for audio, portrait for video)
         _step_start(job, 1)
@@ -216,7 +221,9 @@ def _run_analysis(job_id: str, video_path: str):
         # reliable diff that the karaoke renderer honors — see build_karaoke_ass.
         _prefill_caption_quotes(cuts, transcript_path)
         job["proposed_cuts"] = cuts
-        _step_done(job, 3, f"{len(cuts)} proposed cut(s) — {sum(c['end']-c['start'] for c in cuts):.1f}s total")
+        _step_done(
+            job, 3, f"{len(cuts)} proposed cut(s) — {sum(c['end'] - c['start'] for c in cuts):.1f}s total"
+        )
 
         # STEP 4 — Await approval
         _step_start(job, 4)
@@ -225,15 +232,17 @@ def _run_analysis(job_id: str, video_path: str):
     except Exception as exc:
         tb = traceback.format_exc()
         job["status"] = "error"
-        job["error"]  = str(exc)
+        job["error"] = str(exc)
         for step in job["steps"]:
             if step["status"] == "running":
                 step["status"] = "error"
         print(f"[video_service] Analysis {job_id} failed:\n{tb}")
-        
+
         try:
             log_job(
-                job_id, "video", "error",
+                job_id,
+                "video",
+                "error",
                 {"topic": job.get("topic", "Video"), "error": str(exc), "step": "analysis"},
                 user_id=job.get("user_id"),
             )
@@ -249,7 +258,7 @@ def _compute_portrait_crop(w: int, h: int) -> tuple[int, int, int, int]:
     requires even). For 3840×2160 this yields (1214, 2160, 1313, 0) — the same
     centred window the old hard-coded 1215:2160:1312:0 crop produced.
     """
-    target = PORTRAIT_OUT_W / PORTRAIT_OUT_H          # 9:16 = 0.5625
+    target = PORTRAIT_OUT_W / PORTRAIT_OUT_H  # 9:16 = 0.5625
     if w / h >= target:
         # source wider than 9:16 → keep full height, crop the sides
         crop_h = h
@@ -273,22 +282,39 @@ def _crop_portrait(src: Path, dst: Path, src_w: int, src_h: int) -> None:
             f"(probe failed to read width/height)"
         )
     cw, ch, cx, cy = _compute_portrait_crop(src_w, src_h)
-    vf = (
-        f"crop={cw}:{ch}:{cx}:{cy},"
-        f"scale={PORTRAIT_OUT_W}:{PORTRAIT_OUT_H},setsar=1:1"
-    )
+    vf = f"crop={cw}:{ch}:{cx}:{cy},scale={PORTRAIT_OUT_W}:{PORTRAIT_OUT_H},setsar=1:1"
     try:
-        subprocess.run([
-            "ffmpeg", "-y",
-            "-analyzeduration", "5000000", "-probesize", "5000000",
-            "-i", str(src),
-            "-vf", vf,
-            "-c:v", "libx264", "-crf", "22", "-preset", "ultrafast",
-            "-c:a", "aac", "-b:a", "128k",
-            "-max_muxing_queue_size", "512",
-            "-movflags", "+faststart",
-            str(dst),
-        ], check=True, capture_output=True)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-analyzeduration",
+                "5000000",
+                "-probesize",
+                "5000000",
+                "-i",
+                str(src),
+                "-vf",
+                vf,
+                "-c:v",
+                "libx264",
+                "-crf",
+                "22",
+                "-preset",
+                "ultrafast",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-max_muxing_queue_size",
+                "512",
+                "-movflags",
+                "+faststart",
+                str(dst),
+            ],
+            check=True,
+            capture_output=True,
+        )
     except subprocess.CalledProcessError as exc:
         stderr = (exc.stderr or b"").decode("utf-8", "replace").strip()
         raise RuntimeError(
@@ -300,34 +326,40 @@ def _crop_portrait(src: Path, dst: Path, src_w: int, src_h: int) -> None:
 
 # ── Render pipeline (step 5) ─────────────────────────────────────────────────
 
+
 def _run_render(
-    job_id:           str,
-    grade:            str  = "neutral_punch",
-    include_music:    bool = True,
+    job_id: str,
+    grade: str = "neutral_punch",
+    include_music: bool = True,
     include_graphics: bool = True,
-    coverage:         str  = "beats",   # "beats" = graphics on key moments, "full" = back to back
+    coverage: str = "beats",  # "beats" = graphics on key moments, "full" = back to back
 ):
     job = _jobs[job_id]
     try:
         from helpers.hf_render import check_hyperframes
         from helpers.motion_layer import (
-            OUTRO_DUR, compose_final, plan_motion, remap_words, render_motion_layer,
+            OUTRO_DUR,
+            compose_final,
+            plan_motion,
+            remap_words,
+            render_motion_layer,
         )
-        from render import extract_all_segments, concat_segments
+        from render import concat_segments, extract_all_segments
+
         from config import ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL
 
         job["status"] = "rendering"
         _step_start(job, 5)
-        check_hyperframes()   # hard fail per spec
+        check_hyperframes()  # hard fail per spec
 
         portrait = Path(job.get("portrait_path") or job["video_path"])
         edit_dir = Path(job["edit_dir"])
-        cuts     = job["approved_cuts"]
+        cuts = job["approved_cuts"]
         # Exact (unrounded) source rate. Captions/scenes snap their output-timeline
         # math to this same frame grid as the extracted base video, so they stay
         # locked to the speaker instead of drifting later as the edit progresses.
-        fps      = float((job.get("probe") or {}).get("fps_exact") or 0.0)
-        note     = lambda s: job["steps"][5].__setitem__("note", s)
+        fps = float((job.get("probe") or {}).get("fps_exact") or 0.0)
+        note = lambda s: job["steps"][5].__setitem__("note", s)
 
         snap = lambda d: round(d * fps) / fps if fps > 0 else d
         edit_duration = sum(snap(float(c["end"]) - float(c["start"])) for c in cuts)
@@ -337,8 +369,13 @@ def _run_render(
 
         # 1 — cut + grade + concat → base.mp4
         note("[1/4] Cutting and grading segments…")
-        edl = {"version": 1, "sources": {portrait.stem: str(portrait)},
-               "ranges": cuts, "grade": grade, "overlays": []}
+        edl = {
+            "version": 1,
+            "sources": {portrait.stem: str(portrait)},
+            "ranges": cuts,
+            "grade": grade,
+            "overlays": [],
+        }
         edl_path = edit_dir / "edl.json"
         edl_path.write_text(json.dumps(edl, indent=2))
         job["edl_path"] = str(edl_path)
@@ -349,10 +386,11 @@ def _run_render(
         # 2 — one Claude call plans scenes, music and metadata
         note("[2/4] Planning scenes (Claude)…")
         words = remap_words(transcript_json, cuts, fps)
-        plan  = plan_motion(words, ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL, coverage=coverage)
+        plan = plan_motion(words, ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL, coverage=coverage)
         job["metadata_content"] = plan["metadata"]
         (edit_dir / "metadata.json").write_text(
-            json.dumps(plan["metadata"], indent=2, ensure_ascii=False), encoding="utf-8")
+            json.dumps(plan["metadata"], indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         job["metadata_local"] = str(edit_dir / "metadata.json")
 
         # 3 — music (network-bound) runs while Chromium renders the motion layer.
@@ -360,10 +398,20 @@ def _run_render(
         note("[3/4] Rendering scenes + generating music…")
         music = edit_dir / "music.mp3" if include_music else None
         with ThreadPoolExecutor(max_workers=1) as pool:
-            fut_music = pool.submit(_generate_music, edit_duration + OUTRO_DUR, music,
-                                    plan["music"]["prompt"]) if music else None
-            overlay, _ = render_motion_layer(edit_dir, words, plan, edit_duration, fps,
-                                             coverage=coverage, include_graphics=include_graphics)
+            fut_music = (
+                pool.submit(_generate_music, edit_duration + OUTRO_DUR, music, plan["music"]["prompt"])
+                if music
+                else None
+            )
+            overlay, _ = render_motion_layer(
+                edit_dir,
+                words,
+                plan,
+                edit_duration,
+                fps,
+                coverage=coverage,
+                include_graphics=include_graphics,
+            )
             if fut_music:
                 fut_music.result()
         gc.collect()
@@ -382,19 +430,30 @@ def _run_render(
         try:
             from services.supabase_client import upload_to_storage
 
-            public_url = upload_to_storage("wisuno-assets", f"videos/{job_id}/final_music.mp4", str(output_path), "video/mp4")
+            public_url = upload_to_storage(
+                "wisuno-assets", f"videos/{job_id}/final_music.mp4", str(output_path), "video/mp4"
+            )
             url_to_use = public_url if public_url else f"/api/video/download/{job_id}"
 
             meta_url_to_use = None
             if job.get("metadata_local") and Path(job["metadata_local"]).exists():
-                meta_public = upload_to_storage("wisuno-assets", f"videos/{job_id}/caption.txt", job["metadata_local"], "application/json")
+                meta_public = upload_to_storage(
+                    "wisuno-assets", f"videos/{job_id}/caption.txt", job["metadata_local"], "application/json"
+                )
                 if meta_public:
                     meta_url_to_use = meta_public
                     job["metadata_url"] = meta_public
 
             log_job(
-                job_id, "video", "done",
-                {"topic": job.get("topic", "Video"), "file": url_to_use, "size_mb": size_mb, "metadata_url": meta_url_to_use},
+                job_id,
+                "video",
+                "done",
+                {
+                    "topic": job.get("topic", "Video"),
+                    "file": url_to_use,
+                    "size_mb": size_mb,
+                    "metadata_url": meta_url_to_use,
+                },
                 user_id=job.get("user_id"),
             )
         except Exception as e:
@@ -403,18 +462,25 @@ def _run_render(
     except Exception as exc:
         tb = traceback.format_exc()
         job["status"] = "error"
-        job["error"]  = str(exc)
+        job["error"] = str(exc)
         _step_error(job, 5, str(exc))
         print(f"[video_service] Render {job_id} failed:\n{tb}")
 
         # Log error history
         try:
-            log_job(job_id, "video", "error", {"topic": job.get("topic", "Video"), "error": str(exc)}, user_id=job.get("user_id"))
+            log_job(
+                job_id,
+                "video",
+                "error",
+                {"topic": job.get("topic", "Video"), "error": str(exc)},
+                user_id=job.get("user_id"),
+            )
         except Exception as log_err:
             print(f"[video_service] History log failed: {log_err}")
 
 
 # ── Music helpers ─────────────────────────────────────────────────────────────
+
 
 def _generate_music(duration: float, out_path: Path, prompt: str) -> None:
     """Call ElevenLabs /v1/music with exact duration and the motion plan's prompt.
@@ -422,13 +488,16 @@ def _generate_music(duration: float, out_path: Path, prompt: str) -> None:
     Volume, fades and ducking under the voice are applied later in compose_final.
     """
     import os
+
     from dotenv import load_dotenv
+
     load_dotenv(PROJECT_ROOT / ".env")
     api_key = os.getenv("ELEVENLABS_API_KEY", "")
     if not api_key:
         raise RuntimeError("ELEVENLABS_API_KEY not set in .env")
 
     from elevenlabs.client import ElevenLabs
+
     client = ElevenLabs(api_key=api_key)
 
     audio = client.music.compose(
@@ -447,19 +516,26 @@ def _generate_music(duration: float, out_path: Path, prompt: str) -> None:
 
 # ── Helper functions ───────────────────────────────────────────────────────────
 
+
 def _probe_video(vpath: Path) -> dict:
     cmd = [
-        "ffprobe", "-v", "error",
-        "-select_streams", "v:0",
-        "-show_entries", "stream=width,height,r_frame_rate,codec_name",
-        "-show_entries", "format=duration,size",
-        "-of", "json",
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height,r_frame_rate,codec_name",
+        "-show_entries",
+        "format=duration,size",
+        "-of",
+        "json",
         str(vpath),
     ]
-    out    = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
-    data   = json.loads(out)
+    out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+    data = json.loads(out)
     stream = data.get("streams", [{}])[0]
-    fmt    = data.get("format", {})
+    fmt = data.get("format", {})
 
     fps_raw = stream.get("r_frame_rate", "0/1")
     try:
@@ -471,13 +547,13 @@ def _probe_video(vpath: Path) -> dict:
         fps = 0
 
     return {
-        "width":     stream.get("width"),
-        "height":    stream.get("height"),
-        "fps":       fps,
-        "fps_exact": fps_exact,   # unrounded rate — used to frame-lock A/V & captions
-        "codec":     stream.get("codec_name"),
-        "duration":  float(fmt.get("duration", 0)),
-        "size_mb":   round(int(fmt.get("size", 0)) / (1024 * 1024), 1),
+        "width": stream.get("width"),
+        "height": stream.get("height"),
+        "fps": fps,
+        "fps_exact": fps_exact,  # unrounded rate — used to frame-lock A/V & captions
+        "codec": stream.get("codec_name"),
+        "duration": float(fmt.get("duration", 0)),
+        "size_mb": round(int(fmt.get("size", 0)) / (1024 * 1024), 1),
     }
 
 
@@ -491,7 +567,8 @@ def _transcribe(vpath: Path, edit_dir: Path) -> Path:
         return out_path  # cached
 
     sys.path.insert(0, str(HELPERS_DIR))
-    from transcribe import transcribe_one, load_api_key
+    from transcribe import load_api_key, transcribe_one
+
     api_key = load_api_key()
     transcribe_one(video=vpath, edit_dir=edit_dir, api_key=api_key, verbose=True)
     return out_path
@@ -503,9 +580,9 @@ def _pack_transcripts(edit_dir: Path) -> Path:
     from pack_transcripts import pack_one_file, render_markdown
 
     transcripts_dir = edit_dir / "transcripts"
-    json_files      = sorted(transcripts_dir.glob("*.json"))
-    entries         = [pack_one_file(p, silence_threshold=0.5) for p in json_files]
-    markdown        = render_markdown(entries, silence_threshold=0.5)
+    json_files = sorted(transcripts_dir.glob("*.json"))
+    entries = [pack_one_file(p, silence_threshold=0.5) for p in json_files]
+    markdown = render_markdown(entries, silence_threshold=0.5)
 
     out_path = edit_dir / "takes_packed.md"
     out_path.write_text(markdown, encoding="utf-8")
@@ -523,6 +600,7 @@ def _prefill_caption_quotes(cuts: list[dict], transcript_path: Path) -> None:
     """
     try:
         from helpers.build_karaoke_ass import transcript_text_for_ranges
+
         texts = transcript_text_for_ranges(transcript_path, cuts)
         for cut, text in zip(cuts, texts):
             if text:
@@ -545,10 +623,10 @@ _CUT_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "source": {"type": "string"},
-                    "start":  {"type": "number"},
-                    "end":    {"type": "number"},
-                    "beat":   {"type": "string", "enum": _BEAT_LABELS},
-                    "quote":  {"type": "string"},
+                    "start": {"type": "number"},
+                    "end": {"type": "number"},
+                    "beat": {"type": "string", "enum": _BEAT_LABELS},
+                    "quote": {"type": "string"},
                     "reason": {"type": "string"},
                 },
                 "required": ["source", "start", "end", "beat", "quote", "reason"],
@@ -577,9 +655,12 @@ def _strip_leading_zero_numbers(text: str) -> str:
         ch = text[i]
         if in_str:
             out.append(ch)
-            if escaped:            escaped = False
-            elif ch == "\\":       escaped = True
-            elif ch == '"':        in_str = False
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
             i += 1
             continue
         if ch == '"':
@@ -593,9 +674,9 @@ def _strip_leading_zero_numbers(text: str) -> str:
             while j < n and text[j] == "0":
                 j += 1
             if j < n and text[j].isdigit():
-                i = j          # 015.30 -> 15.30
+                i = j  # 015.30 -> 15.30
                 continue
-            out.append("0")    # a real 0, 0.5, -0.04 — keep it
+            out.append("0")  # a real 0, 0.5, -0.04 — keep it
             i = j
             continue
         out.append(ch)
@@ -606,12 +687,13 @@ def _strip_leading_zero_numbers(text: str) -> str:
 def _ai_cut_analysis(vpath: Path, edit_dir: Path, probe: dict) -> list[dict]:
     """Call Claude to propose EDL cuts from the packed transcript."""
     import anthropic
+
     from config import ANTHROPIC_API_KEY, ANTHROPIC_STRUCTURED_MODEL
 
     packed_md = (edit_dir / "takes_packed.md").read_text(encoding="utf-8")
-    duration  = probe.get("duration", 0)
+    duration = probe.get("duration", 0)
 
-    target_s   = round(duration * 0.85)
+    target_s = round(duration * 0.85)
     target_min = round(duration * 0.70)
     target_max = round(duration * 0.95)
 
@@ -679,7 +761,7 @@ Beat labels: HOOK, POINT, EXAMPLE, INSIGHT, TRANSITION, CTA, CLOSING"""
 
     # Strip markdown code fences
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
-    raw = re.sub(r"\s*```\s*$",        "", raw, flags=re.MULTILINE)
+    raw = re.sub(r"\s*```\s*$", "", raw, flags=re.MULTILINE)
     raw = raw.strip()
     if raw.startswith(("b'", 'b"')):
         raw = raw[1:]
@@ -695,15 +777,23 @@ Beat labels: HOOK, POINT, EXAMPLE, INSIGHT, TRANSITION, CTA, CLOSING"""
         start_idx = m.start()
         depth, in_str, escaped = 0, False, False
         for i, ch in enumerate(text[start_idx:], start_idx):
-            if escaped:     escaped = False; continue
-            if ch == "\\" and in_str: escaped = True; continue
-            if ch == '"':   in_str = not in_str; continue
-            if in_str:      continue
-            if ch == "[":   depth += 1
+            if escaped:
+                escaped = False
+                continue
+            if ch == "\\" and in_str:
+                escaped = True
+                continue
+            if ch == '"':
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if ch == "[":
+                depth += 1
             elif ch == "]":
                 depth -= 1
                 if depth == 0:
-                    return text[start_idx:i + 1]
+                    return text[start_idx : i + 1]
         raise ValueError("Claude returned an incomplete JSON array")
 
     try:
@@ -730,56 +820,59 @@ Beat labels: HOOK, POINT, EXAMPLE, INSIGHT, TRANSITION, CTA, CLOSING"""
     valid = []
     for c in cuts:
         if all(k in c for k in ("source", "start", "end")):
-            valid.append({
-                "source": str(c["source"]),
-                "start":  float(c["start"]),
-                "end":    float(c["end"]),
-                "beat":   c.get("beat", ""),
-                "quote":  c.get("quote", ""),
-                "reason": c.get("reason", ""),
-            })
+            valid.append(
+                {
+                    "source": str(c["source"]),
+                    "start": float(c["start"]),
+                    "end": float(c["end"]),
+                    "beat": c.get("beat", ""),
+                    "quote": c.get("quote", ""),
+                    "reason": c.get("reason", ""),
+                }
+            )
 
-    (edit_dir / "proposed_cuts.json").write_text(
-        json.dumps(valid, indent=2), encoding="utf-8"
-    )
+    (edit_dir / "proposed_cuts.json").write_text(json.dumps(valid, indent=2), encoding="utf-8")
     return valid
+
 
 def _generate_video_metadata(packed_md_text: str, out_path: Path) -> dict:
     """Use Anthropic API to generate Title, Caption, and Hashtags."""
     import json
     import re
+
     from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
-    
+
     if not ANTHROPIC_API_KEY:
         raise ValueError("Anthropic API key is missing.")
-        
+
     import anthropic
+
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    
+
     system_prompt = (
         "You are an expert social media manager for viral news videos. "
         "Based on the provided video transcript, generate a catchy, highly engaging title, "
         "a compelling caption for Instagram/TikTok that summarizes the core hook, and a list of 5-8 relevant hashtags.\n"
-        "Return ONLY a raw JSON object with the following schema: {\"title\": \"...\", \"caption\": \"...\", \"hashtags\": [\"#...\", ...]}"
+        'Return ONLY a raw JSON object with the following schema: {"title": "...", "caption": "...", "hashtags": ["#...", ...]}'
     )
-    
+
     response = client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=300,
         temperature=0.7,
         system=system_prompt,
-        messages=[{"role": "user", "content": f"Transcript:\n{packed_md_text}"}]
+        messages=[{"role": "user", "content": f"Transcript:\n{packed_md_text}"}],
     )
-    
+
     text = response.content[0].text
-    match = re.search(r'\{.*\}', text, re.DOTALL)
+    match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
         raise ValueError("AI did not return valid JSON.")
-        
+
     data = json.loads(match.group(0))
     data["title"] = data.get("title", "Untitled Video")
     data["caption"] = data.get("caption", "")
     data["hashtags"] = data.get("hashtags", [])
-    
+
     out_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     return data

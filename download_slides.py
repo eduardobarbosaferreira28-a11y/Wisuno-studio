@@ -8,10 +8,12 @@ USAGE:
 EXAMPLE:
   python download_slides.py "output/the-dollar-rises" https://export.canva.com/page1.png https://...
 """
+
+import json
 import sys
 from pathlib import Path
+
 from exporter import download_slides, print_export_summary
-import json
 
 
 def main():

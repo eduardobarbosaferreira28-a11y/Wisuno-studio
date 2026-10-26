@@ -6,6 +6,7 @@ Drop-in replacement for the equivalent functions in image_generator.py.
 The SDK's subscribe() call blocks until the job completes (handles polling
 internally), so no manual polling is needed.
 """
+
 import os
 import time
 from pathlib import Path
@@ -49,7 +50,7 @@ def generate_background_image(
                 _MODEL,
                 arguments={
                     "prompt": prompt,
-                    "aspect_ratio": "9:16",   # portrait — closest to the 3:4 canvas
+                    "aspect_ratio": "9:16",  # portrait — closest to the 3:4 canvas
                     "resolution": "2K",
                 },
             )
@@ -66,6 +67,4 @@ def generate_background_image(
             if attempt < retries:
                 time.sleep(3)
                 continue
-            raise RuntimeError(
-                f"Higgsfield background image generation failed: {exc}"
-            ) from exc
+            raise RuntimeError(f"Higgsfield background image generation failed: {exc}") from exc

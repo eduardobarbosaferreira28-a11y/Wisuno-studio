@@ -10,11 +10,13 @@ Outputs:
     - PNG files in output/the-inflation-monster-returns/images/
     - Prints public URLs for each image
 """
-import os
+
 import json
+import os
 import time
-import requests
 from pathlib import Path
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -72,9 +74,10 @@ def generate_imagen4(prompt: str) -> bytes:
 
 def generate_gemini_flash_image(prompt: str) -> bytes:
     """Fallback: generate image using gemini-2.5-flash-image."""
+    import base64
+
     from google import genai
     from google.genai import types
-    import base64
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     response = client.models.generate_content(
@@ -134,7 +137,9 @@ def main() -> dict[str, str]:
         for attempt, gen_fn in enumerate([generate_imagen4, generate_gemini_flash_image], 1):
             try:
                 image_bytes = gen_fn(prompt)
-                print(f"  Generated ({['Imagen4', 'Gemini Flash Image'][attempt-1]}), {len(image_bytes):,} bytes")
+                print(
+                    f"  Generated ({['Imagen4', 'Gemini Flash Image'][attempt - 1]}), {len(image_bytes):,} bytes"
+                )
                 break
             except Exception as e:
                 print(f"  Attempt {attempt} failed: {e}")

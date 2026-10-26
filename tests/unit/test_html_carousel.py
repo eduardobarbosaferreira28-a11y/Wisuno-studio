@@ -1,16 +1,19 @@
 """Unit tests for html_carousel pure helpers + translate_script (mocked Claude)."""
+
 import json
 
 import pytest
 
 import html_carousel as hc
 
-
 # ── _slugify ────────────────────────────────────────────────────────────────────
 
+
 def test_slugify_basic():
-    assert hc._slugify("The Inflation Monster Returns: CPI Hits 3.8%") == \
-        "the-inflation-monster-returns-cpi-hits-38"
+    assert (
+        hc._slugify("The Inflation Monster Returns: CPI Hits 3.8%")
+        == "the-inflation-monster-returns-cpi-hits-38"
+    )
 
 
 def test_slugify_strips_and_collapses_whitespace():
@@ -23,6 +26,7 @@ def test_slugify_respects_max_len():
 
 
 # ── _save_caption ─────────────────────────────────────────────────────────────
+
 
 def test_save_caption_appends_hashtags(tmp_path):
     path = tmp_path / "caption.txt"
@@ -39,6 +43,7 @@ def test_save_caption_without_hashtags(tmp_path):
 
 
 # ── translate_script (Claude mocked) ──────────────────────────────────────────
+
 
 def test_translate_script_plain_json(monkeypatch, fake_anthropic):
     translated = {"title": "通膨", "slides": []}

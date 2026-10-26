@@ -1,4 +1,3 @@
-import os
 from supabase import create_client
 
 SUPABASE_URL = "https://wkfwjdwjpavgzugwcgte.supabase.co"
@@ -16,13 +15,13 @@ except Exception as e:
 try:
     print("\nTesting insert...")
     import uuid
+
     job_id = str(uuid.uuid4())
-    res = client.table("jobs").insert({
-        "id": job_id,
-        "job_type": "carousel",
-        "status": "done",
-        "details": {"topic": "Test Topic"}
-    }).execute()
+    res = (
+        client.table("jobs")
+        .insert({"id": job_id, "job_type": "carousel", "status": "done", "details": {"topic": "Test Topic"}})
+        .execute()
+    )
     print("Insert successful:", res.data)
 except Exception as e:
     print("Insert failed:", e)

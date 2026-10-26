@@ -3,13 +3,15 @@ studio/backend/routers/history.py
 ==================================
 Serves job history for the Dashboard.
 """
+
 from __future__ import annotations
 
+from dependencies.auth import get_current_user, is_admin, user_id_of
 from fastapi import APIRouter, Depends
-from dependencies.auth import get_current_user, user_id_of, is_admin
 from services.history_service import get_history
 
 router = APIRouter(prefix="/api/history", tags=["history"])
+
 
 @router.get("")
 async def fetch_history(limit: int = 100, user: dict = Depends(get_current_user)):

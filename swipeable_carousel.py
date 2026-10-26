@@ -13,26 +13,26 @@ Usage (standalone):
 
 The output HTML is written to output/<folder>/carousel.html.
 """
+
 import base64
 import html as _esc
 import json
-import re
 import sys
 from pathlib import Path
 
 # ── Brand tokens ────────────────────────────────────────────────────────────
-_BG       = "#0A0A0A"
-_ORANGE   = "#FF6700"
-_WHITE    = "#FFFFFF"
-_GRAY     = "#CCCCCC"
-_DIM      = "#888888"
+_BG = "#0A0A0A"
+_ORANGE = "#FF6700"
+_WHITE = "#FFFFFF"
+_GRAY = "#CCCCCC"
+_DIM = "#888888"
 
 # Light theme — English non-cover slides only
-_CLOUD_MIST      = "#FAFAFA"
-_LIGHT_PRIMARY   = "#0A0A0A"
+_CLOUD_MIST = "#FAFAFA"
+_LIGHT_PRIMARY = "#0A0A0A"
 _LIGHT_SECONDARY = "#444444"
-_LIGHT_DIM       = "#666666"
-_LIGHT_BORDER    = "rgba(0,0,0,0.10)"
+_LIGHT_DIM = "#666666"
+_LIGHT_BORDER = "rgba(0,0,0,0.10)"
 
 _BASE_DIR = Path(__file__).parent
 _LOGO_PATH = _BASE_DIR / "Wisuno Logo" / "White-Colored.png"
@@ -46,7 +46,7 @@ _FONT_CONFIGS: dict[str, dict] = {
             "&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
         ),
         "heading": "'Urbanist'",
-        "body":    "'Inter'",
+        "body": "'Inter'",
     },
     "zh-TW": {
         "google_fonts": (
@@ -54,7 +54,7 @@ _FONT_CONFIGS: dict[str, dict] = {
             "&family=Noto+Sans+TC:wght@300;400;500;600&display=swap"
         ),
         "heading": "'Noto Serif TC'",
-        "body":    "'Noto Sans TC'",
+        "body": "'Noto Sans TC'",
     },
     "zh-CN": {
         "google_fonts": (
@@ -62,7 +62,7 @@ _FONT_CONFIGS: dict[str, dict] = {
             "&family=Noto+Sans+SC:wght@300;400;500;600&display=swap"
         ),
         "heading": "'Noto Serif SC'",
-        "body":    "'Noto Sans SC'",
+        "body": "'Noto Sans SC'",
     },
     "th": {
         "google_fonts": (
@@ -70,7 +70,7 @@ _FONT_CONFIGS: dict[str, dict] = {
             "0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
         ),
         "heading": "'Sarabun'",
-        "body":    "'Sarabun'",
+        "body": "'Sarabun'",
     },
     # Brazilian Portuguese is Latin-script — reuse the brand fonts (Urbanist + Inter).
     "pt-BR": {
@@ -79,7 +79,7 @@ _FONT_CONFIGS: dict[str, dict] = {
             "&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
         ),
         "heading": "'Urbanist'",
-        "body":    "'Inter'",
+        "body": "'Inter'",
     },
     # Vietnamese is Latin-script (with diacritics) — reuse the brand fonts.
     # Urbanist + Inter both ship a Vietnamese subset (served via unicode-range).
@@ -89,122 +89,134 @@ _FONT_CONFIGS: dict[str, dict] = {
             "&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
         ),
         "heading": "'Urbanist'",
-        "body":    "'Inter'",
+        "body": "'Inter'",
     },
 }
 
 # ── CTA slide copy per language ──────────────────────────────────────────────
 _CTA_CONTENT: dict[str, tuple[str, str]] = {
-    "en":    ("FOLLOW FOR MORE",  "Daily market breakdowns so you never miss a macro move."),
-    "zh-TW": ("追蹤更多內容",      "每日市場解析，讓您掌握每一個宏觀動態。"),
-    "zh-CN": ("关注获取更多",      "每日市场解析，让您掌握每一个宏观动态。"),
-    "th":    ("ติดตามเพิ่มเติม",  "วิเคราะห์ตลาดรายวัน ไม่พลาดทุกความเคลื่อนไหวเศรษฐกิจมหภาค"),
-    "pt-BR": ("SIGA PARA MAIS",  "Análises de mercado diárias para você nunca perder um movimento macro."),
-    "vi":    ("THEO DÕI ĐỂ XEM THÊM", "Phân tích thị trường mỗi ngày để bạn không bỏ lỡ bất kỳ biến động vĩ mô nào."),
+    "en": ("FOLLOW FOR MORE", "Daily market breakdowns so you never miss a macro move."),
+    "zh-TW": ("追蹤更多內容", "每日市場解析，讓您掌握每一個宏觀動態。"),
+    "zh-CN": ("关注获取更多", "每日市场解析，让您掌握每一个宏观动态。"),
+    "th": ("ติดตามเพิ่มเติม", "วิเคราะห์ตลาดรายวัน ไม่พลาดทุกความเคลื่อนไหวเศรษฐกิจมหภาค"),
+    "pt-BR": ("SIGA PARA MAIS", "Análises de mercado diárias para você nunca perder um movimento macro."),
+    "vi": (
+        "THEO DÕI ĐỂ XEM THÊM",
+        "Phân tích thị trường mỗi ngày để bạn không bỏ lỡ bất kỳ biến động vĩ mô nào.",
+    ),
 }
 
 _CTA_CONTENT_EDUCATIONAL: dict[str, tuple[str, str]] = {
-    "en":    ("FOLLOW FOR MORE",  "New financial concepts every week — so you never stop learning."),
-    "zh-TW": ("追蹤更多內容",      "每週全新金融概念，讓您持續學習、不斷進步。"),
-    "zh-CN": ("关注获取更多",      "每周全新金融概念，让您持续学习、不断进步。"),
-    "th":    ("ติดตามเพิ่มเติม",  "แนวคิดการเงินใหม่ทุกสัปดาห์ เพื่อให้คุณไม่หยุดเรียนรู้"),
-    "pt-BR": ("SIGA PARA MAIS",  "Novos conceitos financeiros toda semana — para você nunca parar de aprender."),
-    "vi":    ("THEO DÕI ĐỂ XEM THÊM", "Khái niệm tài chính mới mỗi tuần — để bạn không ngừng học hỏi."),
+    "en": ("FOLLOW FOR MORE", "New financial concepts every week — so you never stop learning."),
+    "zh-TW": ("追蹤更多內容", "每週全新金融概念，讓您持續學習、不斷進步。"),
+    "zh-CN": ("关注获取更多", "每周全新金融概念，让您持续学习、不断进步。"),
+    "th": ("ติดตามเพิ่มเติม", "แนวคิดการเงินใหม่ทุกสัปดาห์ เพื่อให้คุณไม่หยุดเรียนรู้"),
+    "pt-BR": (
+        "SIGA PARA MAIS",
+        "Novos conceitos financeiros toda semana — para você nunca parar de aprender.",
+    ),
+    "vi": ("THEO DÕI ĐỂ XEM THÊM", "Khái niệm tài chính mới mỗi tuần — để bạn không ngừng học hỏi."),
 }
 
 _CTA_CONTENT_PROMOTIONAL: dict[str, tuple[str, str]] = {
-    "en":    ("FOLLOW FOR MORE",  "Join a community trading smarter with Wisuno — clear markets, every day."),
-    "zh-TW": ("追蹤更多內容",      "加入 Wisuno 社群，與更聰明的交易者同行——每日看懂市場。"),
-    "zh-CN": ("关注获取更多",      "加入 Wisuno 社群，与更聪明的交易者同行——每日看懂市场。"),
-    "th":    ("ติดตามเพิ่มเติม",  "ร่วมเป็นส่วนหนึ่งของชุมชน Wisuno เทรดอย่างชาญฉลาด เข้าใจตลาดทุกวัน"),
-    "pt-BR": ("SIGA PARA MAIS",  "Junte-se a uma comunidade que opera de forma mais inteligente com a Wisuno — mercados claros, todos os dias."),
-    "vi":    ("THEO DÕI ĐỂ XEM THÊM", "Tham gia cộng đồng giao dịch thông minh hơn cùng Wisuno — hiểu rõ thị trường mỗi ngày."),
+    "en": ("FOLLOW FOR MORE", "Join a community trading smarter with Wisuno — clear markets, every day."),
+    "zh-TW": ("追蹤更多內容", "加入 Wisuno 社群，與更聰明的交易者同行——每日看懂市場。"),
+    "zh-CN": ("关注获取更多", "加入 Wisuno 社群，与更聪明的交易者同行——每日看懂市场。"),
+    "th": ("ติดตามเพิ่มเติม", "ร่วมเป็นส่วนหนึ่งของชุมชน Wisuno เทรดอย่างชาญฉลาด เข้าใจตลาดทุกวัน"),
+    "pt-BR": (
+        "SIGA PARA MAIS",
+        "Junte-se a uma comunidade que opera de forma mais inteligente com a Wisuno — mercados claros, todos os dias.",
+    ),
+    "vi": (
+        "THEO DÕI ĐỂ XEM THÊM",
+        "Tham gia cộng đồng giao dịch thông minh hơn cùng Wisuno — hiểu rõ thị trường mỗi ngày.",
+    ),
 }
 
 # ── UI chrome strings per language ───────────────────────────────────────────
 _UI_STRINGS: dict[str, dict] = {
     "en": {
-        "html_lang":    "en",
-        "slide_label":  "Slide",
-        "prev_slide":   "Previous slide",
-        "next_slide":   "Next slide",
+        "html_lang": "en",
+        "slide_label": "Slide",
+        "prev_slide": "Previous slide",
+        "next_slide": "Next slide",
         "download_btn": "Download All Slides (JPG)",
-        "loading":      "Loading libraries...",
-        "rendering":    "Rendering {i} / {n}...",
-        "packaging":    "Packaging ZIP...",
-        "done":         "Download All Slides (JPG)",
-        "error":        "Export failed \u2014 try again",
+        "loading": "Loading libraries...",
+        "rendering": "Rendering {i} / {n}...",
+        "packaging": "Packaging ZIP...",
+        "done": "Download All Slides (JPG)",
+        "error": "Export failed \u2014 try again",
     },
     "zh-TW": {
-        "html_lang":    "zh-TW",
-        "slide_label":  "幻燈片",
-        "prev_slide":   "上一張",
-        "next_slide":   "下一張",
+        "html_lang": "zh-TW",
+        "slide_label": "幻燈片",
+        "prev_slide": "上一張",
+        "next_slide": "下一張",
         "download_btn": "下載全部幻燈片 (JPG)",
-        "loading":      "載入中...",
-        "rendering":    "渲染 {i} / {n}...",
-        "packaging":    "打包 ZIP...",
-        "done":         "下載全部幻燈片 (JPG)",
-        "error":        "匯出失敗，請重試",
+        "loading": "載入中...",
+        "rendering": "渲染 {i} / {n}...",
+        "packaging": "打包 ZIP...",
+        "done": "下載全部幻燈片 (JPG)",
+        "error": "匯出失敗，請重試",
     },
     "zh-CN": {
-        "html_lang":    "zh-CN",
-        "slide_label":  "幻灯片",
-        "prev_slide":   "上一张",
-        "next_slide":   "下一张",
+        "html_lang": "zh-CN",
+        "slide_label": "幻灯片",
+        "prev_slide": "上一张",
+        "next_slide": "下一张",
         "download_btn": "下载全部幻灯片 (JPG)",
-        "loading":      "加载中...",
-        "rendering":    "渲染 {i} / {n}...",
-        "packaging":    "打包 ZIP...",
-        "done":         "下载全部幻灯片 (JPG)",
-        "error":        "导出失败，请重试",
+        "loading": "加载中...",
+        "rendering": "渲染 {i} / {n}...",
+        "packaging": "打包 ZIP...",
+        "done": "下载全部幻灯片 (JPG)",
+        "error": "导出失败，请重试",
     },
     "pt-BR": {
-        "html_lang":    "pt-BR",
-        "slide_label":  "Slide",
-        "prev_slide":   "Slide anterior",
-        "next_slide":   "Próximo slide",
+        "html_lang": "pt-BR",
+        "slide_label": "Slide",
+        "prev_slide": "Slide anterior",
+        "next_slide": "Próximo slide",
         "download_btn": "Baixar todos os slides (JPG)",
-        "loading":      "Carregando...",
-        "rendering":    "Renderizando {i} / {n}...",
-        "packaging":    "Compactando ZIP...",
-        "done":         "Baixar todos os slides (JPG)",
-        "error":        "Falha na exportação — tente novamente",
+        "loading": "Carregando...",
+        "rendering": "Renderizando {i} / {n}...",
+        "packaging": "Compactando ZIP...",
+        "done": "Baixar todos os slides (JPG)",
+        "error": "Falha na exportação — tente novamente",
     },
     "vi": {
-        "html_lang":    "vi",
-        "slide_label":  "Trang",
-        "prev_slide":   "Trang trước",
-        "next_slide":   "Trang sau",
+        "html_lang": "vi",
+        "slide_label": "Trang",
+        "prev_slide": "Trang trước",
+        "next_slide": "Trang sau",
         "download_btn": "Tải tất cả các trang (JPG)",
-        "loading":      "Đang tải...",
-        "rendering":    "Đang kết xuất {i} / {n}...",
-        "packaging":    "Đang đóng gói ZIP...",
-        "done":         "Tải tất cả các trang (JPG)",
-        "error":        "Xuất thất bại — thử lại",
+        "loading": "Đang tải...",
+        "rendering": "Đang kết xuất {i} / {n}...",
+        "packaging": "Đang đóng gói ZIP...",
+        "done": "Tải tất cả các trang (JPG)",
+        "error": "Xuất thất bại — thử lại",
     },
     "th": {
-        "html_lang":    "th",
-        "slide_label":  "สไลด์",
-        "prev_slide":   "สไลด์ก่อนหน้า",
-        "next_slide":   "สไลด์ถัดไป",
+        "html_lang": "th",
+        "slide_label": "สไลด์",
+        "prev_slide": "สไลด์ก่อนหน้า",
+        "next_slide": "สไลด์ถัดไป",
         "download_btn": "ดาวน์โหลดทุกสไลด์ (JPG)",
-        "loading":      "กำลังโหลด...",
-        "rendering":    "กำลังแสดงผล {i} / {n}...",
-        "packaging":    "กำลังบีบอัด ZIP...",
-        "done":         "ดาวน์โหลดทุกสไลด์ (JPG)",
-        "error":        "ส่งออกล้มเหลว \u2014 ลองอีกครั้ง",
+        "loading": "กำลังโหลด...",
+        "rendering": "กำลังแสดงผล {i} / {n}...",
+        "packaging": "กำลังบีบอัด ZIP...",
+        "done": "ดาวน์โหลดทุกสไลด์ (JPG)",
+        "error": "ส่งออกล้มเหลว \u2014 ลองอีกครั้ง",
     },
 }
 
 # ── Fixed on-slide labels per language (not part of the script JSON) ──────────
 _SLIDE_LABELS: dict[str, dict[str, str]] = {
-    "en":    {"why_it_matters": "WHY IT MATTERS"},
+    "en": {"why_it_matters": "WHY IT MATTERS"},
     "zh-TW": {"why_it_matters": "為什麼重要"},
     "zh-CN": {"why_it_matters": "为什么重要"},
-    "th":    {"why_it_matters": "ทำไมจึงสำคัญ"},
+    "th": {"why_it_matters": "ทำไมจึงสำคัญ"},
     "pt-BR": {"why_it_matters": "POR QUE IMPORTA"},
-    "vi":    {"why_it_matters": "TẠI SAO ĐIỀU NÀY QUAN TRỌNG"},
+    "vi": {"why_it_matters": "TẠI SAO ĐIỀU NÀY QUAN TRỌNG"},
 }
 
 
@@ -350,26 +362,24 @@ _SLIDE_CSS = """
 
 # ── Slide body renderers (return inner HTML only, no wrapping doc) ────────────
 
+
 def _render_cover(slide: dict, bg_data_uri: str | None = None, disclaimer: str = "") -> str:
     headline = _e(slide.get("headline", ""))
-    sub      = _e(slide.get("subheadline", ""))
-    tag      = _e(slide.get("asset_tag", ""))
+    sub = _e(slide.get("subheadline", ""))
+    tag = _e(slide.get("asset_tag", ""))
 
-    bg_css  = ""
+    bg_css = ""
     overlay = ""
     if bg_data_uri:
-        bg_css = (
-            f"background-image:url('{bg_data_uri}');"
-            "background-size:cover;background-position:center;"
-        )
+        bg_css = f"background-image:url('{bg_data_uri}');background-size:cover;background-position:center;"
         overlay = (
             '<div style="position:absolute;inset:0;'
-            'background:linear-gradient('
-            'to bottom,'
-            'rgba(10,10,10,0.45) 0%,'
-            'rgba(10,10,10,0.55) 40%,'
-            'rgba(10,10,10,0.82) 70%,'
-            'rgba(10,10,10,0.96) 100%'
+            "background:linear-gradient("
+            "to bottom,"
+            "rgba(10,10,10,0.45) 0%,"
+            "rgba(10,10,10,0.55) 40%,"
+            "rgba(10,10,10,0.82) 70%,"
+            "rgba(10,10,10,0.96) 100%"
             ');z-index:1;"></div>'
         )
 
@@ -405,25 +415,25 @@ _DIR_COLOR = {"UP": "#FF6700", "DOWN": "#EF4444", "FLAT": "#888888"}
 
 
 def _render_data_slide(slide: dict, disclaimer: str = "", light: bool = False) -> str:
-    headline    = _e(slide.get("section_headline", ""))
-    tag         = _e(slide.get("asset_tag", ""))
+    headline = _e(slide.get("section_headline", ""))
+    tag = _e(slide.get("asset_tag", ""))
     data_points = slide.get("data_points", [])
-    takeaway    = _e(slide.get("takeaway_line", ""))
+    takeaway = _e(slide.get("takeaway_line", ""))
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
-    row_border = _LIGHT_BORDER   if light else "rgba(255,255,255,0.07)"
+    dim = _LIGHT_DIM if light else _DIM
+    row_border = _LIGHT_BORDER if light else "rgba(255,255,255,0.07)"
 
     rows = ""
     for dp in data_points:
-        label     = _e(dp.get("label", ""))
-        value     = _e(dp.get("value", ""))
+        label = _e(dp.get("label", ""))
+        value = _e(dp.get("value", ""))
         direction = dp.get("direction", "FLAT").upper()
-        arrow     = _DIR_ARROW.get(direction, "→")
-        color     = _DIR_COLOR.get(direction, "#888888")
+        arrow = _DIR_ARROW.get(direction, "→")
+        color = _DIR_COLOR.get(direction, "#888888")
         rows += f"""
     <div style="display:flex;align-items:center;justify-content:space-between;
                 padding:18px 0;border-bottom:1px solid {row_border};">
@@ -459,21 +469,21 @@ def _render_data_slide(slide: dict, disclaimer: str = "", light: bool = False) -
 
 
 def _render_analysis_slide(slide: dict, slide_num: int = 0, disclaimer: str = "", light: bool = False) -> str:
-    tag        = _e(slide.get("asset_tag", ""))
+    tag = _e(slide.get("asset_tag", ""))
     paragraphs = slide.get("analysis_paragraphs", [])
-    label      = f"0{slide_num}" if slide_num < 10 else str(slide_num)
-    fs         = "20px" if len(paragraphs) <= 2 else "18px"
+    label = f"0{slide_num}" if slide_num < 10 else str(slide_num)
+    fs = "20px" if len(paragraphs) <= 2 else "18px"
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
+    dim = _LIGHT_DIM if light else _DIM
     watermark = "rgba(255,103,0,0.22)" if light else "rgba(255,103,0,0.08)"
 
     paras = ""
     for i, p in enumerate(paragraphs):
-        mt    = "0" if i == 0 else "32px"
+        mt = "0" if i == 0 else "32px"
         color = primary if i == 0 else secondary
         paras += f"""<p style="font-family:'Inter',sans-serif;font-size:{fs};font-weight:400;
                         color:{color};line-height:1.7;margin-top:{mt};">{_e(p)}</p>\n"""
@@ -499,16 +509,18 @@ def _render_analysis_slide(slide: dict, slide_num: int = 0, disclaimer: str = ""
 </div>"""
 
 
-def _render_quote_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False) -> str:
-    tag         = _e(slide.get("asset_tag", ""))
-    quote       = _e(slide.get("quote_text", ""))
+def _render_quote_slide(
+    slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False
+) -> str:
+    tag = _e(slide.get("asset_tag", ""))
+    quote = _e(slide.get("quote_text", ""))
     attribution = _e(slide.get("quote_attribution", ""))
-    rhetorical  = slide.get("rhetorical_question")
+    rhetorical = slide.get("rhetorical_question")
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
-    dim       = _LIGHT_DIM       if light else _DIM
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
+    dim = _LIGHT_DIM if light else _DIM
     watermark = "rgba(255,103,0,0.28)" if light else "rgba(255,103,0,0.12)"
     rhet_color = "#555555" if light else "#888888"
 
@@ -530,7 +542,7 @@ def _render_quote_slide(slide: dict, img_uri: str | None = None, disclaimer: str
     </div>"""
 
     justify = "flex-start" if img_uri else "center"
-    pt      = "padding-top:60px;" if img_uri else ""
+    pt = "padding-top:60px;" if img_uri else ""
 
     return f"""
 <div class="slide-inner" style="background:{bg};">
@@ -558,15 +570,17 @@ def _render_quote_slide(slide: dict, img_uri: str | None = None, disclaimer: str
 </div>"""
 
 
-def _render_chart_slide(slide: dict, chart_data_uri: str | None = None, disclaimer: str = "", light: bool = False) -> str:
-    tag         = _e(slide.get("asset_tag", ""))
+def _render_chart_slide(
+    slide: dict, chart_data_uri: str | None = None, disclaimer: str = "", light: bool = False
+) -> str:
+    tag = _e(slide.get("asset_tag", ""))
     chart_asset = _e(slide.get("chart_asset", ""))
-    caption     = _e(slide.get("chart_caption", ""))
+    caption = _e(slide.get("chart_caption", ""))
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
+    dim = _LIGHT_DIM if light else _DIM
     grid_stroke = "#BBBBBB" if light else "#222"
 
     if chart_data_uri:
@@ -622,8 +636,9 @@ def _render_chart_slide(slide: dict, chart_data_uri: str | None = None, disclaim
 </div>"""
 
 
-def _render_cta_slide(slide: dict | None = None, language: str = "en",
-                      content_type: str = "market_insight", light: bool = False) -> str:
+def _render_cta_slide(
+    slide: dict | None = None, language: str = "en", content_type: str = "market_insight", light: bool = False
+) -> str:
     if content_type == "educational":
         cta_map = _CTA_CONTENT_EDUCATIONAL
     elif content_type == "promotional":
@@ -631,13 +646,13 @@ def _render_cta_slide(slide: dict | None = None, language: str = "en",
     else:
         cta_map = _CTA_CONTENT
     headline, body = cta_map.get(language, cta_map["en"])
-    disclaimer     = _DISCLAIMER_TEXT.get(language, _DISCLAIMER_TEXT["en"])
+    disclaimer = _DISCLAIMER_TEXT.get(language, _DISCLAIMER_TEXT["en"])
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
+    dim = _LIGHT_DIM if light else _DIM
     grid_opacity = "0.07" if light else "0.04"
 
     return f"""
@@ -677,19 +692,21 @@ def _render_cta_slide(slide: dict | None = None, language: str = "en",
 
 # ── Educational slide renderers ───────────────────────────────────────────────
 
-def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "",
-                          light: bool = False, language: str = "en") -> str:
-    tag          = _e(slide.get("asset_tag", ""))
-    term         = _e(slide.get("term", ""))
-    definition   = _e(slide.get("definition", ""))
-    why_matters  = _e(slide.get("why_it_matters", ""))
-    why_label    = _SLIDE_LABELS.get(language, _SLIDE_LABELS["en"])["why_it_matters"]
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
+def _render_concept_slide(
+    slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False, language: str = "en"
+) -> str:
+    tag = _e(slide.get("asset_tag", ""))
+    term = _e(slide.get("term", ""))
+    definition = _e(slide.get("definition", ""))
+    why_matters = _e(slide.get("why_it_matters", ""))
+    why_label = _SLIDE_LABELS.get(language, _SLIDE_LABELS["en"])["why_it_matters"]
+
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
+    dim = _LIGHT_DIM if light else _DIM
 
     img_panel = ""
     if img_uri:
@@ -735,22 +752,24 @@ def _render_concept_slide(slide: dict, img_uri: str | None = None, disclaimer: s
 </div>"""
 
 
-def _render_steps_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False) -> str:
-    tag      = _e(slide.get("asset_tag", ""))
+def _render_steps_slide(
+    slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False
+) -> str:
+    tag = _e(slide.get("asset_tag", ""))
     headline = _e(slide.get("headline", ""))
-    steps    = slide.get("steps", [])
-    fs       = "14px" if len(steps) >= 5 else "16px"
+    steps = slide.get("steps", [])
+    fs = "14px" if len(steps) >= 5 else "16px"
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
-    dim       = _LIGHT_DIM       if light else _DIM
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
+    dim = _LIGHT_DIM if light else _DIM
     step_border_color = "rgba(0,0,0,0.08)" if light else "rgba(255,255,255,0.06)"
 
     rows = ""
     for i, step in enumerate(steps):
-        text   = _e(step.get("text", step) if isinstance(step, dict) else step)
-        num    = str(i + 1).zfill(2)
+        text = _e(step.get("text", step) if isinstance(step, dict) else step)
+        num = str(i + 1).zfill(2)
         border = f"border-bottom:1px solid {step_border_color};" if i < len(steps) - 1 else ""
         rows += f"""
     <div class="edu-step-row" style="{border}">
@@ -792,18 +811,20 @@ def _render_steps_slide(slide: dict, img_uri: str | None = None, disclaimer: str
 </div>"""
 
 
-def _render_comparison_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False) -> str:
-    tag       = _e(slide.get("asset_tag", ""))
-    headline  = _e(slide.get("headline", ""))
-    col_a     = _e(slide.get("col_a_label", "A"))
-    col_b     = _e(slide.get("col_b_label", "B"))
+def _render_comparison_slide(
+    slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False
+) -> str:
+    tag = _e(slide.get("asset_tag", ""))
+    headline = _e(slide.get("headline", ""))
+    col_a = _e(slide.get("col_a_label", "A"))
+    col_b = _e(slide.get("col_b_label", "B"))
     rows_data = slide.get("rows", [])
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
+    dim = _LIGHT_DIM if light else _DIM
     row_border_color = "rgba(0,0,0,0.08)" if light else "rgba(255,255,255,0.06)"
     col_divider = "rgba(0,0,0,0.12)" if light else "rgba(255,255,255,0.08)"
 
@@ -861,20 +882,22 @@ def _render_comparison_slide(slide: dict, img_uri: str | None = None, disclaimer
 </div>"""
 
 
-def _render_example_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False) -> str:
-    tag             = _e(slide.get("asset_tag", ""))
-    headline        = _e(slide.get("headline", ""))
-    scenario        = _e(slide.get("scenario", ""))
+def _render_example_slide(
+    slide: dict, img_uri: str | None = None, disclaimer: str = "", light: bool = False
+) -> str:
+    tag = _e(slide.get("asset_tag", ""))
+    headline = _e(slide.get("headline", ""))
+    scenario = _e(slide.get("scenario", ""))
     featured_number = _e(slide.get("featured_number", ""))
-    number_label    = _e(slide.get("number_label", ""))
-    narrative       = _e(slide.get("narrative", ""))
-    outcome         = slide.get("outcome")
+    number_label = _e(slide.get("number_label", ""))
+    narrative = _e(slide.get("narrative", ""))
+    outcome = slide.get("outcome")
 
-    bg        = _CLOUD_MIST if light else _BG
-    logo_uri  = _dark_logo() if light else _logo()
-    primary   = _LIGHT_PRIMARY   if light else _WHITE
+    bg = _CLOUD_MIST if light else _BG
+    logo_uri = _dark_logo() if light else _logo()
+    primary = _LIGHT_PRIMARY if light else _WHITE
     secondary = _LIGHT_SECONDARY if light else _GRAY
-    dim       = _LIGHT_DIM       if light else _DIM
+    dim = _LIGHT_DIM if light else _DIM
 
     outcome_html = ""
     if outcome:
@@ -926,16 +949,17 @@ def _render_example_slide(slide: dict, img_uri: str | None = None, disclaimer: s
 
 # ── Promotional slide renderers (always dark brand theme) ─────────────────────
 
+
 def _render_value_prop_slide(slide: dict, disclaimer: str = "") -> str:
     """Promo: eyebrow + headline + three value pillars (title / detail)."""
-    tag      = _e(slide.get("asset_tag", ""))
-    eyebrow  = _e(slide.get("section_headline", ""))
+    tag = _e(slide.get("asset_tag", ""))
+    eyebrow = _e(slide.get("section_headline", ""))
     headline = _e(slide.get("headline", ""))
-    pillars  = slide.get("pillars", []) or []
+    pillars = slide.get("pillars", []) or []
 
     rows = ""
     for i, p in enumerate(pillars[:3]):
-        title  = _e(p.get("title", "") if isinstance(p, dict) else str(p))
+        title = _e(p.get("title", "") if isinstance(p, dict) else str(p))
         detail = _e(p.get("detail", "") if isinstance(p, dict) else "")
         border = "border-top:1px solid rgba(255,255,255,0.08);" if i > 0 else ""
         rows += f"""
@@ -979,10 +1003,10 @@ def _render_value_prop_slide(slide: dict, disclaimer: str = "") -> str:
 
 def _render_benefits_slide(slide: dict, disclaimer: str = "") -> str:
     """Promo: headline + a list of benefits with orange check markers."""
-    tag      = _e(slide.get("asset_tag", ""))
+    tag = _e(slide.get("asset_tag", ""))
     headline = _e(slide.get("headline", ""))
     benefits = slide.get("benefits", []) or []
-    fs       = "18px" if len(benefits) <= 3 else "16px"
+    fs = "18px" if len(benefits) <= 3 else "16px"
 
     rows = ""
     for b in benefits[:5]:
@@ -1017,9 +1041,9 @@ def _render_benefits_slide(slide: dict, disclaimer: str = "") -> str:
 
 def _render_feature_slide(slide: dict, img_uri: str | None = None, disclaimer: str = "") -> str:
     """Promo: single feature spotlight (name + detail) with optional hero image."""
-    tag      = _e(slide.get("asset_tag", ""))
-    name     = _e(slide.get("feature_name", slide.get("headline", "")))
-    detail   = _e(slide.get("feature_detail", ""))
+    tag = _e(slide.get("asset_tag", ""))
+    name = _e(slide.get("feature_name", slide.get("headline", "")))
+    detail = _e(slide.get("feature_detail", ""))
 
     img_panel = ""
     if img_uri:
@@ -1057,6 +1081,7 @@ def _render_feature_slide(slide: dict, img_uri: str | None = None, disclaimer: s
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────
 
+
 def _render_slide(
     slide: dict,
     slide_images: dict,
@@ -1065,11 +1090,11 @@ def _render_slide(
     content_type: str = "market_insight",
 ) -> str | None:
     stype = slide.get("type", "")
-    snum  = slide.get("slide_number", 0)
-    disc  = _DISCLAIMER_TEXT.get(language, _DISCLAIMER_TEXT["en"])
+    snum = slide.get("slide_number", 0)
+    disc = _DISCLAIMER_TEXT.get(language, _DISCLAIMER_TEXT["en"])
 
     # Cloud Mist light theme applies only to English non-cover slides
-    light = (language == "en" and stype != "cover")
+    light = language == "en" and stype != "cover"
 
     if stype == "cover":
         return _render_cover(slide, bg_data_uri=slide_images.get(snum), disclaimer=disc)
@@ -1085,7 +1110,9 @@ def _render_slide(
     elif stype == "cta_slide":
         return _render_cta_slide(slide, language=language, content_type=content_type, light=light)
     elif stype == "concept_slide":
-        return _render_concept_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light, language=language)
+        return _render_concept_slide(
+            slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light, language=language
+        )
     elif stype == "steps_slide":
         return _render_steps_slide(slide, img_uri=slide_images.get(snum), disclaimer=disc, light=light)
     elif stype == "comparison_slide":
@@ -1103,6 +1130,7 @@ def _render_slide(
 
 
 # ── Main assembler ────────────────────────────────────────────────────────────
+
 
 def build_swipeable_html(
     script: dict,
@@ -1125,18 +1153,17 @@ def build_swipeable_html(
     if slide_images is None:
         slide_images = {}
 
-    slides_data  = script.get("slides", [])
-    total        = len(slides_data)
-    title        = _e(script.get("title", "Wisuno Carousel"))
+    slides_data = script.get("slides", [])
+    total = len(slides_data)
+    title = _e(script.get("title", "Wisuno Carousel"))
     analysis_ctr = [0]
-    ui           = _UI_STRINGS.get(language, _UI_STRINGS["en"])
+    ui = _UI_STRINGS.get(language, _UI_STRINGS["en"])
     content_type = script.get("content_type", "market_insight")
 
     # Build slide divs
     slide_divs = ""
     for slide in slides_data:
-        inner = _render_slide(slide, slide_images, analysis_ctr, language=language,
-                              content_type=content_type)
+        inner = _render_slide(slide, slide_images, analysis_ctr, language=language, content_type=content_type)
         if inner is None:
             continue
         slide_divs += f'<div class="slide-frame">{inner}</div>\n'
@@ -1146,11 +1173,11 @@ def build_swipeable_html(
     for i in range(total):
         dots_html += (
             f'<button class="dot{" active" if i == 0 else ""}" '
-            f'onclick="goTo({i})" aria-label="{ui["slide_label"]} {i+1}"></button>\n'
+            f'onclick="goTo({i})" aria-label="{ui["slide_label"]} {i + 1}"></button>\n'
         )
 
     html = f"""<!DOCTYPE html>
-<html lang="{ui['html_lang']}">
+<html lang="{ui["html_lang"]}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1286,8 +1313,8 @@ def build_swipeable_html(
 <body>
   <div class="carousel-shell">
     <!-- Arrows sit outside the viewport -->
-    <button class="nav-arrow" id="btn-prev" aria-label="{ui['prev_slide']}">&#8592;</button>
-    <button class="nav-arrow" id="btn-next" aria-label="{ui['next_slide']}">&#8594;</button>
+    <button class="nav-arrow" id="btn-prev" aria-label="{ui["prev_slide"]}">&#8592;</button>
+    <button class="nav-arrow" id="btn-next" aria-label="{ui["next_slide"]}">&#8594;</button>
 
     <!-- Viewport -->
     <div id="viewport">
@@ -1306,7 +1333,7 @@ def build_swipeable_html(
 
     <!-- Download -->
     <button id="btn-download" onclick="downloadAllSlides()">
-      <span id="download-label">{ui['download_btn']}</span>
+      <span id="download-label">{ui["download_btn"]}</span>
     </button>
   </div>
 
@@ -1505,22 +1532,24 @@ def build_swipeable_html(
 
     # ── Language font substitution ────────────────────────────────────────────
     if language != "en":
-        eng      = _FONT_CONFIGS["en"]
+        eng = _FONT_CONFIGS["en"]
         lang_cfg = _FONT_CONFIGS.get(language, eng)
         html = html.replace(eng["google_fonts"], lang_cfg["google_fonts"])
-        html = html.replace("'Urbanist'",        lang_cfg["heading"])
-        html = html.replace("'Inter'",           lang_cfg["body"])
+        html = html.replace("'Urbanist'", lang_cfg["heading"])
+        html = html.replace("'Inter'", lang_cfg["body"])
 
     return html
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     import argparse
     import time
-    from image_generator import bytes_to_data_uri, generate_background_image
+
     from chart_renderer import chart_data_uri_for, svg_to_data_uri
+    from image_generator import bytes_to_data_uri, generate_background_image
 
     parser = argparse.ArgumentParser(description="Build a swipeable carousel HTML from script.json")
     parser.add_argument("--script", type=Path, required=True, help="Path to script.json")
@@ -1533,8 +1562,8 @@ def main() -> None:
         sys.exit(1)
 
     script = json.loads(script_path.read_text(encoding="utf-8"))
-    output_dir  = script_path.parent
-    images_dir  = output_dir / "images"
+    output_dir = script_path.parent
+    images_dir = output_dir / "images"
     carousel_out = output_dir / "carousel.html"
 
     slide_images: dict[int, str] = {}
@@ -1543,13 +1572,13 @@ def main() -> None:
         print("Generating Gemini images…")
         for slide in script.get("slides", []):
             stype = slide.get("type", "")
-            snum  = slide.get("slide_number", 0)
+            snum = slide.get("slide_number", 0)
 
             if slide.get("background_image_description"):
-                desc     = slide["background_image_description"]
+                desc = slide["background_image_description"]
                 img_name = "cover_bg.jpg" if stype == "cover" else f"slide_{snum}_bg.jpg"
                 img_path = images_dir / img_name
-                label    = "Cover bg" if stype == "cover" else f"Slide {snum} bg"
+                label = "Cover bg" if stype == "cover" else f"Slide {snum} bg"
                 print(f"  → {label}: {desc[:60]}…")
                 try:
                     img_bytes = generate_background_image(desc, img_path)
@@ -1559,9 +1588,9 @@ def main() -> None:
                 time.sleep(1)
 
             elif stype == "chart_slide":
-                chart_asset  = slide.get("chart_asset", "price action")
+                chart_asset = slide.get("chart_asset", "price action")
                 chart_symbol = slide.get("chart_symbol", "")
-                img_path     = images_dir / f"chart_{snum}.svg"
+                img_path = images_dir / f"chart_{snum}.svg"
                 if img_path.exists():
                     print(f"  → Chart {snum}: reusing cached {img_path.name}")
                     slide_images[snum] = svg_to_data_uri(img_path.read_text(encoding="utf-8"))

@@ -12,6 +12,7 @@ stays legible over arbitrary generated imagery — the carousel doesn't need thi
 because its background is always near-black, but Gen Studio output can be any
 colour.
 """
+
 from __future__ import annotations
 
 import io
@@ -30,8 +31,8 @@ DISCLAIMER_TEXT = (
     "Trade responsibly."
 )
 
-_TEXT_COLOR  = (136, 136, 136, 255)   # #888888 — matches the carousel disclaimer
-_SCRIM_COLOR = (10, 10, 10)           # near-black scrim base (#0A0A0A)
+_TEXT_COLOR = (136, 136, 136, 255)  # #888888 — matches the carousel disclaimer
+_SCRIM_COLOR = (10, 10, 10)  # near-black scrim base (#0A0A0A)
 
 # Font discovery order: Windows (local dev) → Linux (Railway) → macOS.
 _FONT_CANDIDATES = [
@@ -45,6 +46,7 @@ _FONT_CANDIDATES = [
 
 def _load_font(size: int):
     from PIL import ImageFont
+
     for c in _FONT_CANDIDATES:
         if Path(c).exists():
             try:
@@ -77,13 +79,13 @@ def _render_band(width: int, height: int):
     band = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(band)
 
-    side_margin   = int(width * 0.08)
+    side_margin = int(width * 0.08)
     bottom_margin = int(height * 0.045)
-    font_size     = max(12, round(width * 0.0139))   # carousel: 15px on 1080w
-    line_gap      = round(font_size * 1.55)           # carousel line-height: 1.55
-    font          = _load_font(font_size)
+    font_size = max(12, round(width * 0.0139))  # carousel: 15px on 1080w
+    line_gap = round(font_size * 1.55)  # carousel line-height: 1.55
+    font = _load_font(font_size)
 
-    lines   = _wrap(draw, DISCLAIMER_TEXT, font, width - 2 * side_margin)
+    lines = _wrap(draw, DISCLAIMER_TEXT, font, width - 2 * side_margin)
     block_h = line_gap * len(lines)
 
     # Gradient scrim (transparent at top → ~65% black at the very bottom).
@@ -117,8 +119,16 @@ def overlay_disclaimer_on_image(image_bytes: bytes) -> bytes:
 def _probe_dims(path: Path) -> tuple[int, int]:
     out = subprocess.check_output(
         [
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=width,height", "-of", "json", str(path),
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "json",
+            str(path),
         ],
         stderr=subprocess.DEVNULL,
     )
@@ -135,17 +145,35 @@ def overlay_disclaimer_on_video(input_path: Path, output_path: Path) -> None:
     try:
         subprocess.run(
             [
-                "ffmpeg", "-y",
-                "-i", str(input_path),
-                "-i", str(band_png),
-                "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto[v]",
-                "-map", "[v]", "-map", "0:a?",
-                "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
-                "-c:a", "copy",
-                "-movflags", "+faststart",
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(input_path),
+                "-i",
+                str(band_png),
+                "-filter_complex",
+                "[0:v][1:v]overlay=0:0:format=auto[v]",
+                "-map",
+                "[v]",
+                "-map",
+                "0:a?",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "copy",
+                "-movflags",
+                "+faststart",
                 str(output_path),
             ],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
     finally:
         band_png.unlink(missing_ok=True)

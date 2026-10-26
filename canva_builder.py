@@ -14,40 +14,42 @@ the Canva MCP tool calls described in it.
 When running inside a Claude Code session, paste the printed spec into the
 prompt and Claude Code will execute the Canva MCP calls automatically.
 """
-from __future__ import annotations
-from dataclasses import dataclass, field
-import json
 
-from config import CANVAS_SIZE, SLIDE_LAYOUTS, BRAND_COLORS, FONTS, FONT_SIZES, DISCLAIMER, LOGO_DIR
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+
+from config import BRAND_COLORS, CANVAS_SIZE, DISCLAIMER, FONT_SIZES, FONTS, LOGO_DIR, SLIDE_LAYOUTS
 
 # Canvas dimensions
-CANVAS_WIDTH  = 1080
+CANVAS_WIDTH = 1080
 CANVAS_HEIGHT = 1350
 
 # Safe zone — text must stay inside these insets
 SAFE_ZONE = {
-    "left":   50,
-    "right":  50,
-    "top":    180,
+    "left": 50,
+    "right": 50,
+    "top": 180,
     "bottom": 180,
 }
 # Derived safe-area bounds
-SAFE_LEFT   = SAFE_ZONE["left"]
-SAFE_RIGHT  = CANVAS_WIDTH  - SAFE_ZONE["right"]
-SAFE_TOP    = SAFE_ZONE["top"]
+SAFE_LEFT = SAFE_ZONE["left"]
+SAFE_RIGHT = CANVAS_WIDTH - SAFE_ZONE["right"]
+SAFE_TOP = SAFE_ZONE["top"]
 SAFE_BOTTOM = CANVAS_HEIGHT - SAFE_ZONE["bottom"]
-SAFE_WIDTH  = SAFE_RIGHT  - SAFE_LEFT    # 980 px
-SAFE_HEIGHT = SAFE_BOTTOM - SAFE_TOP     # 990 px
+SAFE_WIDTH = SAFE_RIGHT - SAFE_LEFT  # 980 px
+SAFE_HEIGHT = SAFE_BOTTOM - SAFE_TOP  # 990 px
 
 
 @dataclass
 class SlideSpec:
     slide_number: int
-    slide_type: str          # cover | data_slide | analysis_slide | quote_slide | chart_slide | cta_slide
-    layout: dict             # from SLIDE_LAYOUTS
+    slide_type: str  # cover | data_slide | analysis_slide | quote_slide | chart_slide | cta_slide
+    layout: dict  # from SLIDE_LAYOUTS
     text_elements: list[dict] = field(default_factory=list)
-    background_image_description: str | None = None   # cover slide image description
-    data_points: list[dict] | None = None             # data_slide stats
+    background_image_description: str | None = None  # cover slide image description
+    data_points: list[dict] | None = None  # data_slide stats
 
 
 @dataclass
@@ -61,17 +63,17 @@ class CanvaDesignSpec:
 
     def to_dict(self) -> dict:
         return {
-            "title":       self.title,
-            "asset_tag":   self.asset_tag,
-            "num_pages":   self.num_pages,
+            "title": self.title,
+            "asset_tag": self.asset_tag,
+            "num_pages": self.num_pages,
             "canvas_size": f"{self.canvas_width}x{self.canvas_height}",
             "slides": [
                 {
-                    "slide_number":              s.slide_number,
-                    "type":                      s.slide_type,
-                    "text_elements":             s.text_elements,
+                    "slide_number": s.slide_number,
+                    "type": s.slide_type,
+                    "text_elements": s.text_elements,
                     "background_image_description": s.background_image_description,
-                    "data_points":               s.data_points,
+                    "data_points": s.data_points,
                 }
                 for s in self.slides
             ],
@@ -100,82 +102,250 @@ def build_design_spec(script: dict) -> CanvaDesignSpec:
         if stype == "cover":
             spec.background_image_description = slide.get("background_image_description")
             spec.text_elements = [
-                _text("asset_tag",    slide.get("asset_tag", script["asset_tag"]),
-                      FONT_SIZES["asset_tag"], BRAND_COLORS["orange"], FONTS["body"], "Medium", "upper"),
-                _text("headline",     slide["headline"],
-                      FONT_SIZES["cover_headline"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold", "upper"),
-                _text("subheadline",  slide.get("subheadline", ""),
-                      FONT_SIZES["cover_subheadline"], BRAND_COLORS["text_secondary"], FONTS["body"], "Regular"),
-                _text("disclaimer",   DISCLAIMER,
-                      FONT_SIZES["disclaimer"], BRAND_COLORS["light_grey"], FONTS["body"], "Regular"),
+                _text(
+                    "asset_tag",
+                    slide.get("asset_tag", script["asset_tag"]),
+                    FONT_SIZES["asset_tag"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Medium",
+                    "upper",
+                ),
+                _text(
+                    "headline",
+                    slide["headline"],
+                    FONT_SIZES["cover_headline"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                    "upper",
+                ),
+                _text(
+                    "subheadline",
+                    slide.get("subheadline", ""),
+                    FONT_SIZES["cover_subheadline"],
+                    BRAND_COLORS["text_secondary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "disclaimer",
+                    DISCLAIMER,
+                    FONT_SIZES["disclaimer"],
+                    BRAND_COLORS["light_grey"],
+                    FONTS["body"],
+                    "Regular",
+                ),
             ]
 
         elif stype == "data_slide":
             spec.data_points = slide.get("data_points", [])
             spec.text_elements = [
-                _text("asset_tag",       slide.get("asset_tag", script["asset_tag"]),
-                      FONT_SIZES["asset_tag"], BRAND_COLORS["orange"], FONTS["body"], "Medium", "upper"),
-                _text("section_headline", slide.get("section_headline", ""),
-                      FONT_SIZES["data_headline"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold"),
-                _text("takeaway_line",   slide.get("takeaway_line", ""),
-                      FONT_SIZES["analysis_body"], BRAND_COLORS["text_secondary"], FONTS["body"], "Regular"),
-                _text("disclaimer",      DISCLAIMER,
-                      FONT_SIZES["disclaimer"], BRAND_COLORS["light_grey"], FONTS["body"], "Regular"),
+                _text(
+                    "asset_tag",
+                    slide.get("asset_tag", script["asset_tag"]),
+                    FONT_SIZES["asset_tag"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Medium",
+                    "upper",
+                ),
+                _text(
+                    "section_headline",
+                    slide.get("section_headline", ""),
+                    FONT_SIZES["data_headline"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                ),
+                _text(
+                    "takeaway_line",
+                    slide.get("takeaway_line", ""),
+                    FONT_SIZES["analysis_body"],
+                    BRAND_COLORS["text_secondary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "disclaimer",
+                    DISCLAIMER,
+                    FONT_SIZES["disclaimer"],
+                    BRAND_COLORS["light_grey"],
+                    FONTS["body"],
+                    "Regular",
+                ),
             ]
 
         elif stype == "analysis_slide":
             paragraphs = slide.get("analysis_paragraphs", [])
             spec.text_elements = [
-                _text("asset_tag",  slide.get("asset_tag", script["asset_tag"]),
-                      FONT_SIZES["asset_tag"], BRAND_COLORS["orange"], FONTS["body"], "Medium", "upper"),
-                _text("body",       "\n\n".join(paragraphs),
-                      FONT_SIZES["analysis_body"], BRAND_COLORS["text_primary"], FONTS["body"], "Regular"),
-                _text("disclaimer", DISCLAIMER,
-                      FONT_SIZES["disclaimer"], BRAND_COLORS["light_grey"], FONTS["body"], "Regular"),
+                _text(
+                    "asset_tag",
+                    slide.get("asset_tag", script["asset_tag"]),
+                    FONT_SIZES["asset_tag"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Medium",
+                    "upper",
+                ),
+                _text(
+                    "body",
+                    "\n\n".join(paragraphs),
+                    FONT_SIZES["analysis_body"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "disclaimer",
+                    DISCLAIMER,
+                    FONT_SIZES["disclaimer"],
+                    BRAND_COLORS["light_grey"],
+                    FONTS["body"],
+                    "Regular",
+                ),
             ]
 
         elif stype == "quote_slide":
             spec.text_elements = [
-                _text("asset_tag",           slide.get("asset_tag", script["asset_tag"]),
-                      FONT_SIZES["asset_tag"], BRAND_COLORS["orange"], FONTS["body"], "Medium", "upper"),
-                _text("rhetorical_question",  slide.get("rhetorical_question") or "",
-                      FONT_SIZES["analysis_body"], BRAND_COLORS["text_secondary"], FONTS["body"], "Regular"),
-                _text("quote_text",           f'"{slide.get("quote_text", "")}"',
-                      FONT_SIZES["quote_text"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold"),
-                _text("quote_attribution",    slide.get("quote_attribution", ""),
-                      FONT_SIZES["quote_attribution"], BRAND_COLORS["orange"], FONTS["body"], "Regular"),
-                _text("disclaimer",           DISCLAIMER,
-                      FONT_SIZES["disclaimer"], BRAND_COLORS["light_grey"], FONTS["body"], "Regular"),
+                _text(
+                    "asset_tag",
+                    slide.get("asset_tag", script["asset_tag"]),
+                    FONT_SIZES["asset_tag"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Medium",
+                    "upper",
+                ),
+                _text(
+                    "rhetorical_question",
+                    slide.get("rhetorical_question") or "",
+                    FONT_SIZES["analysis_body"],
+                    BRAND_COLORS["text_secondary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "quote_text",
+                    f'"{slide.get("quote_text", "")}"',
+                    FONT_SIZES["quote_text"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                ),
+                _text(
+                    "quote_attribution",
+                    slide.get("quote_attribution", ""),
+                    FONT_SIZES["quote_attribution"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "disclaimer",
+                    DISCLAIMER,
+                    FONT_SIZES["disclaimer"],
+                    BRAND_COLORS["light_grey"],
+                    FONTS["body"],
+                    "Regular",
+                ),
             ]
 
         elif stype == "chart_slide":
             spec.text_elements = [
-                _text("asset_tag",     slide.get("asset_tag", script["asset_tag"]),
-                      FONT_SIZES["asset_tag"], BRAND_COLORS["orange"], FONTS["body"], "Medium", "upper"),
-                _text("chart_asset",   slide.get("chart_asset", ""),
-                      FONT_SIZES["data_headline"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold"),
-                _text("chart_caption", slide.get("chart_caption", ""),
-                      FONT_SIZES["chart_caption"], BRAND_COLORS["text_secondary"], FONTS["body"], "Regular"),
-                _text("disclaimer",    DISCLAIMER,
-                      FONT_SIZES["disclaimer"], BRAND_COLORS["light_grey"], FONTS["body"], "Regular"),
+                _text(
+                    "asset_tag",
+                    slide.get("asset_tag", script["asset_tag"]),
+                    FONT_SIZES["asset_tag"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Medium",
+                    "upper",
+                ),
+                _text(
+                    "chart_asset",
+                    slide.get("chart_asset", ""),
+                    FONT_SIZES["data_headline"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                ),
+                _text(
+                    "chart_caption",
+                    slide.get("chart_caption", ""),
+                    FONT_SIZES["chart_caption"],
+                    BRAND_COLORS["text_secondary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "disclaimer",
+                    DISCLAIMER,
+                    FONT_SIZES["disclaimer"],
+                    BRAND_COLORS["light_grey"],
+                    FONTS["body"],
+                    "Regular",
+                ),
             ]
 
         elif stype == "cta_slide":
             spec.text_elements = [
-                _text("platform_label", "Trading Platform",
-                      FONT_SIZES["asset_tag"], BRAND_COLORS["orange"], FONTS["body"], "Regular"),
-                _text("domain",         "Wisuno.com",
-                      FONT_SIZES["cta_headline"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold"),
-                _text("cta_headline",   "Start trading with Wisuno.",
-                      FONT_SIZES["data_headline"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold"),
-                _text("cta_body",       "Start with a free demo to explore markets risk-free, then upgrade to live trading for full access, advanced tools, and exclusive benefits.",
-                      FONT_SIZES["cta_body"], BRAND_COLORS["text_secondary"], FONTS["body"], "Regular"),
-                _text("follow_prompt",  "FOLLOW FOR MORE",
-                      FONT_SIZES["data_headline"], BRAND_COLORS["text_primary"], FONTS["headline"], "Bold"),
-                _text("follow_subtext", "Daily market breakdowns so you never miss a macro move",
-                      FONT_SIZES["cta_body"], BRAND_COLORS["text_secondary"], FONTS["body"], "Regular"),
-                _text("disclaimer",     DISCLAIMER,
-                      FONT_SIZES["disclaimer"], BRAND_COLORS["light_grey"], FONTS["body"], "Regular"),
+                _text(
+                    "platform_label",
+                    "Trading Platform",
+                    FONT_SIZES["asset_tag"],
+                    BRAND_COLORS["orange"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "domain",
+                    "Wisuno.com",
+                    FONT_SIZES["cta_headline"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                ),
+                _text(
+                    "cta_headline",
+                    "Start trading with Wisuno.",
+                    FONT_SIZES["data_headline"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                ),
+                _text(
+                    "cta_body",
+                    "Start with a free demo to explore markets risk-free, then upgrade to live trading for full access, advanced tools, and exclusive benefits.",
+                    FONT_SIZES["cta_body"],
+                    BRAND_COLORS["text_secondary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "follow_prompt",
+                    "FOLLOW FOR MORE",
+                    FONT_SIZES["data_headline"],
+                    BRAND_COLORS["text_primary"],
+                    FONTS["headline"],
+                    "Bold",
+                ),
+                _text(
+                    "follow_subtext",
+                    "Daily market breakdowns so you never miss a macro move",
+                    FONT_SIZES["cta_body"],
+                    BRAND_COLORS["text_secondary"],
+                    FONTS["body"],
+                    "Regular",
+                ),
+                _text(
+                    "disclaimer",
+                    DISCLAIMER,
+                    FONT_SIZES["disclaimer"],
+                    BRAND_COLORS["light_grey"],
+                    FONTS["body"],
+                    "Regular",
+                ),
             ]
 
         slide_specs.append(spec)
@@ -190,15 +360,16 @@ def build_design_spec(script: dict) -> CanvaDesignSpec:
     )
 
 
-def _text(role: str, content: str, size: int, color: str,
-          font: str, weight: str, transform: str = "none") -> dict:
+def _text(
+    role: str, content: str, size: int, color: str, font: str, weight: str, transform: str = "none"
+) -> dict:
     return {
-        "role":      role,
-        "content":   content,
-        "font":      font,
-        "size":      size,
-        "color":     color,
-        "weight":    weight,
+        "role": role,
+        "content": content,
+        "font": font,
+        "size": size,
+        "color": color,
+        "weight": weight,
         "transform": transform,
     }
 
@@ -213,7 +384,11 @@ def generate_canva_prompt(spec: CanvaDesignSpec) -> str:
         texts = {el["role"]: el["content"] for el in s.text_elements}
 
         if s.slide_type == "cover":
-            img_note = f" Background image theme: {s.background_image_description}." if s.background_image_description else ""
+            img_note = (
+                f" Background image theme: {s.background_image_description}."
+                if s.background_image_description
+                else ""
+            )
             desc = (
                 f"Slide {s.slide_number} (COVER): Full-bleed dark financial photo with 60–80% dark overlay.{img_note} "
                 f"Logo from local file '{LOGO_DIR / 'White-Colored.png'}' (upload via upload-asset-from-url) top-left corner. "
@@ -228,8 +403,7 @@ def generate_canva_prompt(spec: CanvaDesignSpec) -> str:
             dp_lines = ""
             if s.data_points:
                 dp_lines = " | ".join(
-                    f"{dp['label']}: {dp['value']} ({dp.get('direction', '')})"
-                    for dp in s.data_points
+                    f"{dp['label']}: {dp['value']} ({dp.get('direction', '')})" for dp in s.data_points
                 )
             desc = (
                 f"Slide {s.slide_number} (DATA): Solid dark background #0A0A0A. "

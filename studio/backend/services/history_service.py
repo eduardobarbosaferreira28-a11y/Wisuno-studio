@@ -3,6 +3,7 @@ studio/backend/services/history_service.py
 ==========================================
 Manages the studio_log.jsonl history of all completed and failed jobs.
 """
+
 from __future__ import annotations
 
 import json
@@ -73,24 +74,29 @@ def log_job(job_id: str, job_type: str, status: str, details: dict, user_id: str
 
     if admin_supabase:
         try:
-            admin_supabase.table("jobs").insert({
-                "id": job_id,
-                "job_type": job_type,
-                "status": status,
-                "details": details,
-                "user_id": user_id,
-            }).execute()
+            admin_supabase.table("jobs").insert(
+                {
+                    "id": job_id,
+                    "job_type": job_type,
+                    "status": status,
+                    "details": details,
+                    "user_id": user_id,
+                }
+            ).execute()
             # If inserting into Supabase succeeded, we still append to local log for backup
         except Exception:
             # Never swallow this silently: the jobs table is the ONLY durable record
             # (studio_log.jsonl sits on an ephemeral disk and dies with the container).
             logger.exception(
-                "[history] Supabase insert failed for job %s (%s/%s) — it will NOT "
-                "appear on the dashboard.", job_id, job_type, status,
+                "[history] Supabase insert failed for job %s (%s/%s) — it will NOT appear on the dashboard.",
+                job_id,
+                job_type,
+                status,
             )
 
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+
 
 def get_history(limit: int = 100, user_id: str | None = None, admin: bool = False) -> list[dict]:
     """
@@ -108,30 +114,32 @@ def get_history(limit: int = 100, user_id: str | None = None, admin: bool = Fals
             logger.info("[history] Supabase returned %d rows", len(res.data))
             entries = []
             for row in res.data:
-                entries.append({
-                    "timestamp": row.get("created_at", ""),
-                    "job_id": row.get("id", ""),
-                    "job_type": row.get("job_type", ""),
-                    "status": row.get("status", ""),
-                    "details": row.get("details", {}),
-                    "user_id": row.get("user_id"),
-                })
+                entries.append(
+                    {
+                        "timestamp": row.get("created_at", ""),
+                        "job_id": row.get("id", ""),
+                        "job_type": row.get("job_type", ""),
+                        "status": row.get("status", ""),
+                        "details": row.get("details", {}),
+                        "user_id": row.get("user_id"),
+                    }
+                )
             return entries
         except Exception:
             logger.exception("[history] Supabase read failed — falling back to local log.")
 
     if not LOG_FILE.exists():
         return []
-    
+
     entries = []
-    with open(LOG_FILE, "r", encoding="utf-8") as f:
+    with open(LOG_FILE, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 try:
                     entries.append(json.loads(line))
                 except Exception:
                     pass
-    
+
     # Return latest first
     entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return entries[:limit]

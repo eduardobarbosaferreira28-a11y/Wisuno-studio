@@ -4,12 +4,11 @@ studio/backend/routers/setup.py
 Dependency checker for Wisuno Studio.
 Checks for: FFmpeg, Node.js, HyperFrames, video-use, and API keys in .env
 """
+
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks
@@ -26,10 +25,12 @@ VIDEO_USE_RENDER = PROJECT_ROOT / "studio" / "repos" / "video-use" / "helpers" /
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _run(cmd: list[str], timeout: int = 15) -> tuple[bool, str]:
     """Run a subprocess and return (success, output). Uses shell=True on Windows for npm/npx."""
     import platform
-    use_shell = (platform.system() == "Windows")
+
+    use_shell = platform.system() == "Windows"
     try:
         result = subprocess.run(
             cmd,
@@ -79,6 +80,7 @@ def _write_env_key(key: str, value: str) -> None:
 
 
 # ── Check endpoint ─────────────────────────────────────────────────────────────
+
 
 @router.get("/check")
 async def check_dependencies():
@@ -133,8 +135,7 @@ async def check_dependencies():
         "version": None,
         "required_for": "Final video composite render (render.py)",
         "install_hint": (
-            "Run: git clone https://github.com/browser-use/video-use "
-            f"{VIDEO_USE_RENDER.parent.parent.parent}"
+            f"Run: git clone https://github.com/browser-use/video-use {VIDEO_USE_RENDER.parent.parent.parent}"
         ),
         "path_checked": str(VIDEO_USE_RENDER),
     }
@@ -143,10 +144,10 @@ async def check_dependencies():
     env_vals = _read_env()
     api_keys = {}
     for key, label, required_for in [
-        ("ANTHROPIC_API_KEY",  "Claude (Anthropic)",     "Carousel script generation + cut analysis"),
-        ("ELEVENLABS_API_KEY", "ElevenLabs",             "Video transcription + music generation"),
-        ("GEMINI_API_KEY",     "Google Gemini",          "Carousel image generation"),
-        ("HIGGSFIELD_API_KEY", "Higgsfield (optional)",  "Alternative cover image generation"),
+        ("ANTHROPIC_API_KEY", "Claude (Anthropic)", "Carousel script generation + cut analysis"),
+        ("ELEVENLABS_API_KEY", "ElevenLabs", "Video transcription + music generation"),
+        ("GEMINI_API_KEY", "Google Gemini", "Carousel image generation"),
+        ("HIGGSFIELD_API_KEY", "Higgsfield (optional)", "Alternative cover image generation"),
         ("GOOGLE_CSE_API_KEY", "Google Search (optional)", "Slide image sourcing"),
     ]:
         # Check os.environ first (for Docker/Render), fallback to .env file
@@ -160,10 +161,7 @@ async def check_dependencies():
         }
 
     # ── Summary ──────────────────────────────────────────────────────────────
-    carousel_ready = (
-        api_keys["ANTHROPIC_API_KEY"]["set"]
-        and api_keys["GEMINI_API_KEY"]["set"]
-    )
+    carousel_ready = api_keys["ANTHROPIC_API_KEY"]["set"] and api_keys["GEMINI_API_KEY"]["set"]
     video_ready = (
         report["ffmpeg"]["installed"]
         and report["nodejs"]["installed"]
@@ -198,7 +196,6 @@ async def install_hyperframes(background_tasks: BackgroundTasks):
     def _do_install():
         _install_status["state"] = "running"
         _install_status["log"] = ""
-        import platform
         try:
             # PINNED to match the Dockerfile. An unpinned install pulls whatever is
             # latest and reintroduces the progress-seeking caption drift (see 82f26c7).
@@ -228,9 +225,11 @@ async def install_hyperframes_status():
 
 # ── Save API key ──────────────────────────────────────────────────────────────
 
+
 class SaveKeyRequest(BaseModel):
     key: str
     value: str
+
 
 ALLOWED_KEYS = {
     "ANTHROPIC_API_KEY",
@@ -240,6 +239,7 @@ ALLOWED_KEYS = {
     "GOOGLE_CSE_API_KEY",
     "GOOGLE_CSE_ID",
 }
+
 
 @router.post("/save-key")
 async def save_api_key(req: SaveKeyRequest):

@@ -22,17 +22,18 @@ The Canva design steps (4b onward) require Claude Code's Canva MCP tools.
 After step 4, this script prints everything Claude Code needs to complete
 the design in one shot.
 """
+
 import argparse
 import json
 import re
 import sys
 from pathlib import Path
 
-from config import OUTPUT_DIR
-from content_extractor import extract_from_url, extract_from_text
-from script_generator import generate_script
 from canva_builder import build_design_spec, generate_canva_prompt
+from config import OUTPUT_DIR
+from content_extractor import extract_from_text, extract_from_url
 from exporter import write_caption_file
+from script_generator import generate_script
 
 
 def _slug(title: str) -> str:
@@ -126,7 +127,7 @@ prompt below and send it to Claude Code to complete the design.
 7. Return the Canva design URL and the list of exported page image URLs.
 
 Output folder for this carousel: {output_dir}
-Script JSON: {output_dir / 'script.json'}
+Script JSON: {output_dir / "script.json"}
 """)
     print(">>>END<<<")
     print()

@@ -1,6 +1,8 @@
 import os
-from supabase import create_client, Client
-from config import SUPABASE_URL, SUPABASE_ANON_KEY
+
+from supabase import Client, create_client
+
+from config import SUPABASE_ANON_KEY, SUPABASE_URL
 
 # Initialize Supabase client
 # We use the ANON KEY because all operations will be authenticated via user JWT headers
@@ -31,11 +33,14 @@ def upload_to_storage(bucket: str, destination_path: str, local_file_path: str, 
         return ""
     try:
         with open(local_file_path, "rb") as f:
-            supabase.storage.from_(bucket).upload(destination_path, f, file_options={"content-type": content_type, "upsert": "true"})
+            supabase.storage.from_(bucket).upload(
+                destination_path, f, file_options={"content-type": content_type, "upsert": "true"}
+            )
         public_url = supabase.storage.from_(bucket).get_public_url(destination_path)
-        
+
         import urllib.parse
         from pathlib import Path
+
         filename = Path(local_file_path).name
         encoded_name = urllib.parse.quote(filename)
         return f"{public_url}?download={encoded_name}"

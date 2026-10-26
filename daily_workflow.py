@@ -18,7 +18,7 @@ import argparse
 import json
 import sys
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Ensure stdout/stderr handle Unicode on Windows
@@ -27,23 +27,24 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+import html_carousel
 from config import OUTPUT_DIR
 from news_picker import pick_top_article
-import html_carousel
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-MAX_RETRIES    = 2      # retries if news_picker returns nothing
-LOG_FILE       = OUTPUT_DIR / "daily_log.jsonl"
-LATEST_FILE    = OUTPUT_DIR / "latest_run.json"
+MAX_RETRIES = 2  # retries if news_picker returns nothing
+LOG_FILE = OUTPUT_DIR / "daily_log.jsonl"
+LATEST_FILE = OUTPUT_DIR / "latest_run.json"
 
 SEPARATOR = "═" * 60
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _log(entry: dict) -> None:
@@ -60,6 +61,7 @@ def _save_latest(data: dict) -> None:
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
 
 def run(dry_run: bool = False) -> None:
     started_at = _now_iso()
@@ -81,11 +83,13 @@ def run(dry_run: bool = False) -> None:
     if not article:
         msg = "No suitable articles found today after all retries. Skipping run."
         print(f"\n  ⚠  {msg}")
-        _log({
-            "timestamp": started_at,
-            "status":    "skipped",
-            "reason":    msg,
-        })
+        _log(
+            {
+                "timestamp": started_at,
+                "status": "skipped",
+                "reason": msg,
+            }
+        )
         return
 
     print(f"  Title    : {article['title']}")
@@ -96,11 +100,13 @@ def run(dry_run: bool = False) -> None:
 
     if dry_run:
         print("  [dry-run] Skipping carousel generation.")
-        _log({
-            "timestamp": started_at,
-            "status":    "dry_run",
-            "article":   article,
-        })
+        _log(
+            {
+                "timestamp": started_at,
+                "status": "dry_run",
+                "article": article,
+            }
+        )
         return
 
     # ── Step 2: Generate carousels ────────────────────────────────────────────
@@ -111,28 +117,28 @@ def run(dry_run: bool = False) -> None:
         tb = traceback.format_exc()
         print(f"\n  ✗ Carousel pipeline failed: {exc}", file=sys.stderr)
         print(tb, file=sys.stderr)
-        _log({
-            "timestamp": started_at,
-            "status":    "error",
-            "article":   article,
-            "error":     str(exc),
-            "traceback": tb,
-        })
+        _log(
+            {
+                "timestamp": started_at,
+                "status": "error",
+                "article": article,
+                "error": str(exc),
+                "traceback": tb,
+            }
+        )
         sys.exit(1)
 
     # ── Step 3: Log success ───────────────────────────────────────────────────
     from html_carousel import LANGUAGES  # noqa — import here to avoid circular at top
-    carousel_files = {
-        lang: str(out_dir / f"carousel_{lang}.html")
-        for lang in LANGUAGES
-    }
+
+    carousel_files = {lang: str(out_dir / f"carousel_{lang}.html") for lang in LANGUAGES}
 
     log_entry = {
-        "timestamp":     started_at,
-        "finished_at":   _now_iso(),
-        "status":        "success",
-        "article":       article,
-        "output_dir":    str(out_dir),
+        "timestamp": started_at,
+        "finished_at": _now_iso(),
+        "status": "success",
+        "article": article,
+        "output_dir": str(out_dir),
         "carousel_files": carousel_files,
     }
     _log(log_entry)
@@ -147,6 +153,7 @@ def run(dry_run: bool = False) -> None:
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Wisuno Daily Carousel Workflow")

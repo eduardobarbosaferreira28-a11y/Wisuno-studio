@@ -2,23 +2,25 @@
 launch.py — Wisuno Studio launcher
 Runs uvicorn IN-PROCESS (not as a subprocess) for maximum stability.
 """
+
 import os
+import subprocess
 import sys
 import threading
 import time
 import webbrowser
-import subprocess
 from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-THIS_FILE   = Path(__file__).resolve()
-STUDIO_DIR  = THIS_FILE.parent
+THIS_FILE = Path(__file__).resolve()
+STUDIO_DIR = THIS_FILE.parent
 PROJECT_DIR = STUDIO_DIR.parent
 BACKEND_DIR = STUDIO_DIR / "backend"
-PYTHON      = Path(sys.executable)
-REQS        = BACKEND_DIR / "requirements_studio.txt"
+PYTHON = Path(sys.executable)
+REQS = BACKEND_DIR / "requirements_studio.txt"
 
 URL = "http://localhost:8000"
+
 
 def install_deps():
     print("  [1/2] Checking studio dependencies...")
@@ -32,9 +34,11 @@ def install_deps():
         sys.exit(1)
     print("         OK.\n")
 
+
 def open_browser_when_ready():
     """Poll /health then open the browser."""
     import urllib.request
+
     for _ in range(20):
         time.sleep(1)
         try:
@@ -47,6 +51,7 @@ def open_browser_when_ready():
             pass
     print("\n  [WARNING] Could not confirm server is ready. Try opening manually:")
     print(f"  {URL}\n")
+
 
 def main():
     print()
@@ -81,6 +86,7 @@ def main():
 
     try:
         import uvicorn
+
         uvicorn.run(
             "studio.backend.app:app",
             host="127.0.0.1",
@@ -91,6 +97,7 @@ def main():
         print("\n  [ERROR] uvicorn not found. Installing now...")
         subprocess.run([str(PYTHON), "-m", "pip", "install", "uvicorn[standard]"])
         import uvicorn
+
         uvicorn.run(
             "studio.backend.app:app",
             host="127.0.0.1",
@@ -99,6 +106,7 @@ def main():
         )
     except KeyboardInterrupt:
         print("\n  Server stopped.")
+
 
 if __name__ == "__main__":
     main()

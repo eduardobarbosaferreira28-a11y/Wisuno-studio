@@ -19,25 +19,28 @@ the outro — so there is no separate outro render any more.
 Open overlays/motion/preview.html in a browser to scrub the plan before
 rendering (safe zones, caption space and figures-to-verify toggles).
 """
+
 from __future__ import annotations
 
-import html as _html
 import json
 import subprocess
 from pathlib import Path
 
 from helpers.build_karaoke_ass import (
-    _load_words, _snap_dur, align_edit_to_timings, words_in_range,
+    _load_words,
+    _snap_dur,
+    align_edit_to_timings,
+    words_in_range,
 )
 
-OUTRO_DUR    = 5.0
-SCENE_MIN    = 3.0    # shortest scene worth animating
-BRIDGE_GAP   = 1.2    # gaps shorter than this are closed so mist doesn't flash the speaker
-LOW_CONF_LP  = -0.5   # Scribe word logprob below this → number flagged "verify"
+OUTRO_DUR = 5.0
+SCENE_MIN = 3.0  # shortest scene worth animating
+BRIDGE_GAP = 1.2  # gaps shorter than this are closed so mist doesn't flash the speaker
+LOW_CONF_LP = -0.5  # Scribe word logprob below this → number flagged "verify"
 
 OUTRO = {
     "brand": "Wisuno",
-    "line":  "Follow @wisuno for daily market briefs",
+    "line": "Follow @wisuno for daily market briefs",
     "legal": "Trading involves risk. Not investment advice.",
 }
 DISCLAIMERS = [
@@ -52,6 +55,7 @@ MAX_WORDS, MAX_CHARS, GAP_BREAK = 4, 26, 0.8
 # 1. Timing: words on the output timeline + caption lines
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def remap_words(transcript_json: Path, ranges: list[dict], fps: float | None) -> list[dict]:
     words = _load_words(transcript_json)
     out, acc = [], 0.0
@@ -62,12 +66,14 @@ def remap_words(transcript_json: Path, ranges: list[dict], fps: float | None) ->
         if quote and rng.get("quote_edited"):
             rw = align_edit_to_timings(rw, quote.split())
         for w in rw:
-            out.append({
-                "text":  w["text"].strip(),
-                "start": acc + (float(w["start"]) - r0),
-                "end":   acc + (min(float(w["end"]), r1) - r0),
-                "lp":    w.get("logprob"),
-            })
+            out.append(
+                {
+                    "text": w["text"].strip(),
+                    "start": acc + (float(w["start"]) - r0),
+                    "end": acc + (min(float(w["end"]), r1) - r0),
+                    "lp": w.get("logprob"),
+                }
+            )
         acc += _snap_dur(r1 - r0, fps)
     return out
 
@@ -79,7 +85,8 @@ def caption_lines(words: list[dict]) -> list[dict]:
             gap = w["start"] - words[i - 1]["end"]
             txt = " ".join(x["text"] for x in cur)
             if len(cur) >= MAX_WORDS or len(txt) + len(w["text"]) + 1 > MAX_CHARS or gap > GAP_BREAK:
-                groups.append(cur); cur = []
+                groups.append(cur)
+                cur = []
         cur.append(w)
     if cur:
         groups.append(cur)
@@ -88,9 +95,15 @@ def caption_lines(words: list[dict]) -> list[dict]:
         t_in, t_out = g[0]["start"], g[-1]["end"] + 0.15
         if i + 1 < len(groups):
             t_out = min(t_out, groups[i + 1][0]["start"] - 0.04)
-        lines.append({"t_in": round(t_in, 3), "t_out": round(max(t_out, t_in + 0.2), 3),
-                      "words": [{"text": w["text"], "start": round(w["start"], 3),
-                                 "end": round(w["end"], 3)} for w in g]})
+        lines.append(
+            {
+                "t_in": round(t_in, 3),
+                "t_out": round(max(t_out, t_in + 0.2), 3),
+                "words": [
+                    {"text": w["text"], "start": round(w["start"], 3), "end": round(w["end"], 3)} for w in g
+                ],
+            }
+        )
     return lines
 
 
@@ -98,50 +111,73 @@ def caption_lines(words: list[dict]) -> list[dict]:
 # 2. The scene plan (one Claude call: scenes + music + metadata)
 # ══════════════════════════════════════════════════════════════════════════════
 
-SCENE_TYPES = ["headline", "stat_line", "stairs", "gauge", "board",
-               "curve_callouts", "fill", "stamp", "timeline"]
+SCENE_TYPES = [
+    "headline",
+    "stat_line",
+    "stairs",
+    "gauge",
+    "board",
+    "curve_callouts",
+    "fill",
+    "stamp",
+    "timeline",
+]
 
 _S, _N, _I, _B = {"type": "string"}, {"type": "number"}, {"type": "integer"}, {"type": "boolean"}
 _DIR = {"type": "string", "enum": ["up", "down", "flat"]}
 
+
 def _obj(props: dict) -> dict:
-    return {"type": "object", "properties": props, "required": list(props),
-            "additionalProperties": False}
+    return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
 
-SCENE_SCHEMA = _obj({
-    "type":            {"type": "string", "enum": SCENE_TYPES},
-    "start_word":      _I,
-    "end_word":        _I,
-    "kicker":          _S,
-    "headline":        _S,
-    "sub":             _S,
-    "chip":            _S,
-    "direction":       _DIR,
-    "accent":          {"type": "string", "enum": ["ink", "harbor", "gold", "up", "down"]},
-    "value_from":      _N,
-    "value_to":        _N,
-    "decimals":        _I,
-    "prefix":          _S,
-    "suffix":          _S,
-    "points":          {"type": "array", "items": _N},
-    "threshold":       {"type": "string", "enum": ["none", "ceiling", "band"]},
-    "threshold_label": _S,
-    "level":           _N,
-    "stamp":           _S,
-    "verify":          _B,
-    "callouts":        {"type": "array", "items": _obj({"text": _S, "direction": _DIR, "at": _N})},
-    "rows":            {"type": "array", "items": _obj({
-                            "label": _S, "value_from": _N, "value_to": _N,
-                            "decimals": _I, "direction": _DIR,
-                            "points": {"type": "array", "items": _N}})},
-    "events":          {"type": "array", "items": _obj({"when": _S, "label": _S, "highlight": _B})},
-})
 
-PLAN_SCHEMA = _obj({
-    "scenes":   {"type": "array", "items": SCENE_SCHEMA},
-    "music":    _obj({"prompt": _S, "bpm": _I}),
-    "metadata": _obj({"title": _S, "caption": _S, "hashtags": {"type": "array", "items": _S}}),
-})
+SCENE_SCHEMA = _obj(
+    {
+        "type": {"type": "string", "enum": SCENE_TYPES},
+        "start_word": _I,
+        "end_word": _I,
+        "kicker": _S,
+        "headline": _S,
+        "sub": _S,
+        "chip": _S,
+        "direction": _DIR,
+        "accent": {"type": "string", "enum": ["ink", "harbor", "gold", "up", "down"]},
+        "value_from": _N,
+        "value_to": _N,
+        "decimals": _I,
+        "prefix": _S,
+        "suffix": _S,
+        "points": {"type": "array", "items": _N},
+        "threshold": {"type": "string", "enum": ["none", "ceiling", "band"]},
+        "threshold_label": _S,
+        "level": _N,
+        "stamp": _S,
+        "verify": _B,
+        "callouts": {"type": "array", "items": _obj({"text": _S, "direction": _DIR, "at": _N})},
+        "rows": {
+            "type": "array",
+            "items": _obj(
+                {
+                    "label": _S,
+                    "value_from": _N,
+                    "value_to": _N,
+                    "decimals": _I,
+                    "direction": _DIR,
+                    "points": {"type": "array", "items": _N},
+                }
+            ),
+        },
+        "events": {"type": "array", "items": _obj({"when": _S, "label": _S, "highlight": _B})},
+    }
+)
+
+PLAN_SCHEMA = _obj(
+    {
+        "scenes": {"type": "array", "items": SCENE_SCHEMA},
+        "music": _obj({"prompt": _S, "bpm": _I}),
+        "metadata": _obj({"title": _S, "caption": _S, "hashtags": {"type": "array", "items": _S}}),
+    }
+)
 
 SCENE_GUIDE = """SCENE TYPES — pick the one whose visual metaphor matches what is being said:
 - headline: a big statement with no single number. kicker (optional), headline, sub, chip.
@@ -176,11 +212,15 @@ def _indexed_transcript(words: list[dict]) -> str:
     for i, w in enumerate(words):
         if not row:
             row.append(f"[{w['start']:.1f}s]")
-        flag = "?" if (w.get("lp") is not None and w["lp"] < LOW_CONF_LP
-                       and any(c.isdigit() for c in w["text"])) else ""
+        flag = (
+            "?"
+            if (w.get("lp") is not None and w["lp"] < LOW_CONF_LP and any(c.isdigit() for c in w["text"]))
+            else ""
+        )
         row.append(f"{i}:{w['text']}{flag}")
         if len(row) > 12:
-            rows.append(" ".join(row)); row = []
+            rows.append(" ".join(row))
+            row = []
     if row:
         rows.append(" ".join(row))
     return "\n".join(rows)
@@ -188,15 +228,15 @@ def _indexed_transcript(words: list[dict]) -> str:
 
 def plan_motion(words: list[dict], api_key: str, model: str, coverage: str = "beats") -> dict:
     """coverage="beats": graphics on the strongest beats, speaker on screen between them.
-       coverage="full":  graphics run back to back for the whole video (like the 29 Sep brief)."""
+    coverage="full":  graphics run back to back for the whole video (like the 29 Sep brief)."""
     import anthropic
 
     duration = words[-1]["end"] if words else 0
     cover = (
         "Cover the WHOLE video with back-to-back scenes, one per beat (roughly every 5–12s). "
         "Scene N ends on the word just before scene N+1 starts."
-        if coverage == "full" else
-        "Pick the 3–6 strongest beats. Leave the speaker on screen for the hook, opinions and "
+        if coverage == "full"
+        else "Pick the 3–6 strongest beats. Leave the speaker on screen for the hook, opinions and "
         "transitions. Each scene lasts 4–10s."
     )
     prompt = f"""You are the motion designer for a {duration:.0f}s vertical market-news reel.
@@ -222,8 +262,9 @@ matching this video's mood — no vocals, no drops — and metadata (title, soci
     return json.loads(next((b.text for b in resp.content if b.type == "text"), ""))
 
 
-def place_scenes(scenes: list[dict], words: list[dict], duration: float,
-                 coverage: str = "beats") -> list[dict]:
+def place_scenes(
+    scenes: list[dict], words: list[dict], duration: float, coverage: str = "beats"
+) -> list[dict]:
     """Word indices → seconds. Enforces min length, no overlaps, closes tiny gaps,
     and appends the outro scene after the edit."""
     out: list[dict] = []
@@ -251,8 +292,7 @@ def place_scenes(scenes: list[dict], words: list[dict], duration: float,
         out[-1]["end"] = duration
     if out and duration - out[-1]["end"] < BRIDGE_GAP:
         out[-1]["end"] = duration
-    out.append({"type": "outro", "start": round(duration, 3),
-                "end": round(duration + OUTRO_DUR, 3), **OUTRO})
+    out.append({"type": "outro", "start": round(duration, 3), "end": round(duration + OUTRO_DUR, 3), **OUTRO})
     return out
 
 
@@ -261,7 +301,8 @@ def _blocks(scenes: list[dict]) -> tuple[list[list[float]], list[float]]:
     blocks, bounds = [], []
     for s in scenes:
         if blocks and abs(s["start"] - blocks[-1][1]) < 1e-3:
-            bounds.append(s["start"]); blocks[-1][1] = s["end"]
+            bounds.append(s["start"])
+            blocks[-1][1] = s["end"]
         else:
             blocks.append([s["start"], s["end"]])
     return blocks, bounds
@@ -719,26 +760,39 @@ if (D.preview) {
 def build_motion_html(scenes, lines, edit_duration, fps, preview=False) -> str:
     blocks, bounds = _blocks(scenes)
     total = edit_duration + OUTRO_DUR
-    data = {"scenes": scenes, "lines": lines, "blocks": blocks, "bounds": bounds,
-            "edit": round(edit_duration, 3), "total": round(total, 3),
-            "disclaimers": DISCLAIMERS, "preview": preview}
-    out = (_TEMPLATE.replace("__FPS__", str(round(fps) if fps else 30))
-                    .replace("__DUR__", f"{total:.3f}"))
+    data = {
+        "scenes": scenes,
+        "lines": lines,
+        "blocks": blocks,
+        "bounds": bounds,
+        "edit": round(edit_duration, 3),
+        "total": round(total, 3),
+        "disclaimers": DISCLAIMERS,
+        "preview": preview,
+    }
+    out = _TEMPLATE.replace("__FPS__", str(round(fps) if fps else 30)).replace("__DUR__", f"{total:.3f}")
     return out.replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
 
 
-def render_motion_layer(edit_dir: Path, words: list[dict], plan: dict, edit_duration: float,
-                        fps: float | None, coverage: str = "beats",
-                        include_graphics: bool = True) -> tuple[Path, float]:
+def render_motion_layer(
+    edit_dir: Path,
+    words: list[dict],
+    plan: dict,
+    edit_duration: float,
+    fps: float | None,
+    coverage: str = "beats",
+    include_graphics: bool = True,
+) -> tuple[Path, float]:
     from helpers.hf_render import render_hyperframes
 
-    scenes = place_scenes(plan.get("scenes", []) if include_graphics else [], words,
-                          edit_duration, coverage)
+    scenes = place_scenes(plan.get("scenes", []) if include_graphics else [], words, edit_duration, coverage)
     lines = caption_lines(words)
     slot = edit_dir / "overlays" / "motion"
     slot.mkdir(parents=True, exist_ok=True)
     (slot / "index.html").write_text(build_motion_html(scenes, lines, edit_duration, fps), encoding="utf-8")
-    (slot / "preview.html").write_text(build_motion_html(scenes, lines, edit_duration, fps, preview=True), encoding="utf-8")
+    (slot / "preview.html").write_text(
+        build_motion_html(scenes, lines, edit_duration, fps, preview=True), encoding="utf-8"
+    )
     (slot / "plan.json").write_text(json.dumps({"scenes": scenes, "plan": plan}, indent=2), encoding="utf-8")
     out = slot / "overlay.mov"
     render_hyperframes(slot, out, fmt="mov")
@@ -750,8 +804,16 @@ def render_motion_layer(edit_dir: Path, words: list[dict], plan: dict, edit_dura
 #    held on its last frame for OUTRO_DUR and the opaque mist covers it.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def compose_final(base: Path, overlay: Path, music: Path | None, out: Path,
-                  fps: float, edit_duration: float, outro_dur: float = OUTRO_DUR) -> None:
+
+def compose_final(
+    base: Path,
+    overlay: Path,
+    music: Path | None,
+    out: Path,
+    fps: float,
+    edit_duration: float,
+    outro_dur: float = OUTRO_DUR,
+) -> None:
     total = edit_duration + outro_dur
     rate = f"{fps:.6f}" if fps else "30"
     af = "aformat=sample_rates=48000:channel_layouts=stereo"
@@ -772,10 +834,35 @@ def compose_final(base: Path, overlay: Path, music: Path | None, out: Path,
         ]
     else:
         fc.append("[voice]loudnorm=I=-14:TP=-1.5:LRA=11[a]")
-    subprocess.run([
-        "ffmpeg", "-y", *inputs, "-filter_complex", ";".join(fc),
-        "-map", "[v]", "-map", "[a]",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-        "-t", f"{total:.3f}", "-movflags", "+faststart", str(out),
-    ], check=True, capture_output=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            *inputs,
+            "-filter_complex",
+            ";".join(fc),
+            "-map",
+            "[v]",
+            "-map",
+            "[a]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "20",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-ar",
+            "48000",
+            "-t",
+            f"{total:.3f}",
+            "-movflags",
+            "+faststart",
+            str(out),
+        ],
+        check=True,
+        capture_output=True,
+    )

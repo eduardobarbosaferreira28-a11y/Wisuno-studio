@@ -13,9 +13,9 @@ Brand tokens
   Headline    Urbanist Bold (Google Fonts)
   Body        Inter (Google Fonts — substitute for General Sans)
 """
+
 import base64
 import html as _esc
-from pathlib import Path
 
 from config import BASE_DIR, DISCLAIMER
 
@@ -135,12 +135,12 @@ def render_cover(slide: dict, bg_data_uri: str | None = None) -> str:
         bg_css = f"background-image:url('{bg_data_uri}');background-size:cover;background-position:center;"
         overlay = (
             '<div style="position:absolute;inset:0;'
-            'background:linear-gradient('
-            'to bottom,'
-            'rgba(10,10,10,0.45) 0%,'
-            'rgba(10,10,10,0.55) 40%,'
-            'rgba(10,10,10,0.82) 70%,'
-            'rgba(10,10,10,0.96) 100%'
+            "background:linear-gradient("
+            "to bottom,"
+            "rgba(10,10,10,0.45) 0%,"
+            "rgba(10,10,10,0.55) 40%,"
+            "rgba(10,10,10,0.82) 70%,"
+            "rgba(10,10,10,0.96) 100%"
             ');z-index:1;"></div>'
         )
 
@@ -304,9 +304,9 @@ def render_analysis_slide(slide: dict, slide_num: int = 0) -> str:
         paras_html += f"""\
     <p style="
       font-family:'Inter',sans-serif;
-      font-size:{'20px' if len(paragraphs) <= 2 else '18px'};
+      font-size:{"20px" if len(paragraphs) <= 2 else "18px"};
       font-weight:400;
-      color:{'#FFFFFF' if i == 0 else '#CCCCCC'};
+      color:{"#FFFFFF" if i == 0 else "#CCCCCC"};
       line-height:1.7;
       margin-top:{mt};
     ">{_e(p)}</p>\n"""

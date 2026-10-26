@@ -4,28 +4,29 @@ studio/backend/app.py
 Wisuno Studio — FastAPI application entry point.
 Serves the frontend SPA and exposes API routers.
 """
+
 from __future__ import annotations
 
-import sys
 import os
+import sys
 from pathlib import Path
 
-from fastapi import FastAPI, Response, Depends
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 # Add studio/backend/ to sys.path so `from routers import ...` resolves correctly
-BACKEND_DIR  = Path(__file__).parent
+BACKEND_DIR = Path(__file__).parent
 PROJECT_ROOT = BACKEND_DIR.parent.parent  # wisuno-carousel/
 
 for p in (str(BACKEND_DIR), str(PROJECT_ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+from dependencies.auth import email_of, get_current_user, is_admin, user_id_of  # noqa: E402
 from logging_config import configure_logging  # noqa: E402
 from routers import setup as setup_router  # noqa: E402
-from dependencies.auth import get_current_user, user_id_of, email_of, is_admin  # noqa: E402
 
 configure_logging()
 
@@ -52,7 +53,8 @@ OLD_FRONTEND = BACKEND_DIR.parent / "frontend"
 
 print("Serving Vanilla Frontend")
 app.mount("/css", StaticFiles(directory=str(OLD_FRONTEND / "css")), name="css")
-app.mount("/js",  StaticFiles(directory=str(OLD_FRONTEND / "js")),  name="js")
+app.mount("/js", StaticFiles(directory=str(OLD_FRONTEND / "js")), name="js")
+
 
 @app.get("/api/config.js")
 def get_config_js():
@@ -60,15 +62,16 @@ def get_config_js():
     key = os.environ.get("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
     return Response(
         content=f"window.ENV = {{ SUPABASE_URL: '{url}', SUPABASE_ANON_KEY: '{key}' }};",
-        media_type="application/javascript"
+        media_type="application/javascript",
     )
+
 
 @app.get("/api/me")
 async def whoami(user: dict = Depends(get_current_user)):
     """Identity + role for the logged-in user, used by the frontend to gate admin-only UI."""
     return {
-        "user_id":  user_id_of(user),
-        "email":    email_of(user),
+        "user_id": user_id_of(user),
+        "email": email_of(user),
         "is_admin": is_admin(user),
     }
 
@@ -81,21 +84,21 @@ async def serve_vanilla_index():
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
             "Expires": "0",
-        }
+        },
     )
+
 
 @app.get("/login")
 async def serve_vanilla_login():
     return FileResponse(OLD_FRONTEND / "login.html")
 
 
-
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 from routers import carousel as carousel_router  # noqa: E402
-from routers import video    as video_router     # noqa: E402
-from routers import history  as history_router   # noqa: E402
 from routers import higgsfield as higgsfield_router
+from routers import history as history_router  # noqa: E402
+from routers import video as video_router  # noqa: E402
 
 app.include_router(setup_router.router)
 app.include_router(carousel_router.router)
@@ -106,12 +109,13 @@ app.include_router(higgsfield_router.router)
 
 # ── Job Cleanup ───────────────────────────────────────────────────────────────
 
+
 @app.on_event("startup")
 async def startup_event():
     """Cleanup temporary video edit directories older than 7 days."""
-    import time
     import shutil
-    
+    import time
+
     seven_days_ago = time.time() - (7 * 24 * 60 * 60)
     video_output = PROJECT_ROOT / "output" / "video"
     if video_output.exists():
@@ -131,6 +135,7 @@ async def startup_event():
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "app": "Wisuno Studio", "version": "1.0.0"}
@@ -138,12 +143,13 @@ async def health():
 
 # ── SPA fallback — serve index.html for all unknown routes ───────────────────
 
+
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
     target = OLD_FRONTEND / full_path
     if target.exists() and target.is_file():
         return FileResponse(str(target))
-        
+
     index = OLD_FRONTEND / "index.html"
     if index.exists():
         return FileResponse(str(index), media_type="text/html")

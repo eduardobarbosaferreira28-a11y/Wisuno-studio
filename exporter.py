@@ -5,8 +5,11 @@ After Claude Code executes the Canva MCP tools and calls `export-design`,
 it will have a list of page image URLs. Pass those here to download them
 and write the Instagram caption file.
 """
+
 from pathlib import Path
+
 import requests
+
 from config import REQUEST_TIMEOUT
 
 
@@ -56,7 +59,7 @@ def write_caption_file(script: dict, output_dir: Path) -> Path:
 def print_export_summary(output_dir: Path, slide_paths: list[Path], script: dict) -> None:
     sep = "=" * 60
     print(f"\n{sep}")
-    print(f"  CAROUSEL READY")
+    print("  CAROUSEL READY")
     print(sep)
     print(f"  Title      : {script.get('title', '')}")
     print(f"  Asset      : {script.get('market_tag', '')}")
