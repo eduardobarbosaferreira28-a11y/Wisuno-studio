@@ -2,6 +2,7 @@
 Gemini image wrapper for generating carousel slide images.
 Used for cover background images, quote slide backgrounds, and chart visualizations.
 """
+
 import base64
 from pathlib import Path
 
@@ -130,9 +131,7 @@ def generate_background_image(
     try:
         return retry(_call, attempts=retries + 1, base_delay=3.0)
     except Exception as exc:
-        raise RuntimeError(
-            f"Gemini background image generation failed: {exc}"
-        ) from exc
+        raise RuntimeError(f"Gemini background image generation failed: {exc}") from exc
 
 
 def generate_chart_image(
@@ -168,9 +167,7 @@ def generate_chart_image(
     try:
         return retry(_call, attempts=retries + 1, base_delay=3.0)
     except Exception as exc:
-        raise RuntimeError(
-            f"Gemini chart image generation failed: {exc}"
-        ) from exc
+        raise RuntimeError(f"Gemini chart image generation failed: {exc}") from exc
 
 
 def bytes_to_data_uri(image_bytes: bytes, mime: str | None = None) -> str:

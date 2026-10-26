@@ -8,6 +8,7 @@ USAGE:
     python test_swipeable.py              # full run (Gemini image)
     python test_swipeable.py --no-images  # skip Gemini, plain dark bg
 """
+
 import argparse
 import json
 import sys
@@ -24,8 +25,15 @@ SCRIPT = {
         "Practically dead. Follow @wisuno for daily macro breakdowns."
     ),
     "hashtags": [
-        "inflation", "CPI", "FederalReserve", "interestrates",
-        "macroeconomics", "trading", "forex", "CFD", "wisuno"
+        "inflation",
+        "CPI",
+        "FederalReserve",
+        "interestrates",
+        "macroeconomics",
+        "trading",
+        "forex",
+        "CFD",
+        "wisuno",
     ],
     "slides": [
         {
@@ -46,12 +54,12 @@ SCRIPT = {
             "asset_tag": "US CPI",
             "section_headline": "By The Numbers",
             "data_points": [
-                {"label": "April CPI (Year-over-Year)", "value": "3.8%",   "direction": "UP"},
-                {"label": "Energy share of CPI increase", "value": "40%",  "direction": "UP"},
-                {"label": "Gasoline (YoY)",               "value": "+28.4%","direction": "UP"},
-                {"label": "Airfares (YoY)",                "value": "+21%", "direction": "UP"},
-                {"label": "Core CPI (ex-food & energy)",   "value": "2.8%", "direction": "UP"},
-                {"label": "Fed rate cut probability (2026)","value": "~2%",  "direction": "DOWN"},
+                {"label": "April CPI (Year-over-Year)", "value": "3.8%", "direction": "UP"},
+                {"label": "Energy share of CPI increase", "value": "40%", "direction": "UP"},
+                {"label": "Gasoline (YoY)", "value": "+28.4%", "direction": "UP"},
+                {"label": "Airfares (YoY)", "value": "+21%", "direction": "UP"},
+                {"label": "Core CPI (ex-food & energy)", "value": "2.8%", "direction": "UP"},
+                {"label": "Fed rate cut probability (2026)", "value": "~2%", "direction": "DOWN"},
             ],
             "takeaway_line": (
                 "Energy is the primary engine — but with core at 2.8%, "
@@ -119,9 +127,9 @@ SCRIPT = {
 }
 
 # ── Output setup ──────────────────────────────────────────────────────────────
-_BASE_DIR  = Path(__file__).parent
-_OUT_DIR   = _BASE_DIR / "output" / "cpi-38-inflation-test"
-_IMGS_DIR  = _OUT_DIR / "images"
+_BASE_DIR = Path(__file__).parent
+_OUT_DIR = _BASE_DIR / "output" / "cpi-38-inflation-test"
+_IMGS_DIR = _OUT_DIR / "images"
 
 
 def run(generate_images: bool = True) -> None:
@@ -129,9 +137,7 @@ def run(generate_images: bool = True) -> None:
     _IMGS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Save script for reference
-    (_OUT_DIR / "script.json").write_text(
-        json.dumps(SCRIPT, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    (_OUT_DIR / "script.json").write_text(json.dumps(SCRIPT, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # ── Step 1: Generate Gemini images ────────────────────────────────────
     slide_images: dict[int, str] = {}
@@ -142,7 +148,7 @@ def run(generate_images: bool = True) -> None:
 
         for slide in SCRIPT["slides"]:
             stype = slide.get("type", "")
-            snum  = slide.get("slide_number", 0)
+            snum = slide.get("slide_number", 0)
 
             if stype == "cover" and slide.get("background_image_description"):
                 img_path = _IMGS_DIR / "cover_bg.jpg"
@@ -156,7 +162,7 @@ def run(generate_images: bool = True) -> None:
                     try:
                         img_bytes = generate_background_image(desc, img_path)
                         slide_images[snum] = bytes_to_data_uri(img_bytes)
-                        print(f"    OK Saved to {img_path.name} ({len(img_bytes)//1024} KB)")
+                        print(f"    OK Saved to {img_path.name} ({len(img_bytes) // 1024} KB)")
                     except Exception as exc:
                         print(f"    WARNING Image generation failed: {exc}")
                         print("      Proceeding with plain dark background.")
@@ -168,18 +174,18 @@ def run(generate_images: bool = True) -> None:
     print("\n[2/2] Building swipeable carousel HTML…")
     from swipeable_carousel import build_swipeable_html
 
-    html     = build_swipeable_html(SCRIPT, slide_images)
+    html = build_swipeable_html(SCRIPT, slide_images)
     out_path = _OUT_DIR / "carousel.html"
     out_path.write_text(html, encoding="utf-8")
 
-    print(f"\n{'='*60}")
-    print(f"  Done!")
+    print(f"\n{'=' * 60}")
+    print("  Done!")
     print(f"  Slides  : {len(SCRIPT['slides'])}")
     print(f"  Output  : {out_path}")
     if slide_images:
         print(f"  Images  : {len(slide_images)} Gemini image(s) embedded as data URIs")
-    print(f"{'='*60}")
-    print(f"\n  Open in browser:")
+    print(f"{'=' * 60}")
+    print("\n  Open in browser:")
     print(f"  file:///{out_path.as_posix()}\n")
 
 
@@ -201,5 +207,6 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"\nERROR: {exc}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

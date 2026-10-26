@@ -1,23 +1,21 @@
 import os
-import json
-import uuid
 import tempfile
+import uuid
 from pathlib import Path
-from uuid import UUID
-from typing import List, Optional, Dict, Any, Tuple
+from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
+from dependencies.auth import get_current_user, is_admin, user_id_of
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from supabase import create_client, Client
-
 from services import gen_service
 from services.supabase_client import upload_to_storage
-from dependencies.auth import get_current_user, user_id_of, is_admin
+from supabase import Client, create_client
 
 router = APIRouter(prefix="/api/higgsfield", tags=["higgsfield"])
 
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
 
 # Get Supabase Client
 def get_supabase() -> Client:
@@ -28,7 +26,7 @@ def get_supabase() -> Client:
     return create_client(url, key)
 
 
-def _download_image(url: str) -> Optional[Tuple[bytes, str]]:
+def _download_image(url: str) -> tuple[bytes, str] | None:
     """Fetch an uploaded reference image and return (bytes, mime_type)."""
     try:
         resp = httpx.get(url, timeout=30, follow_redirects=True)
@@ -47,14 +45,18 @@ async def upload_reference_image(file: UploadFile = File(...), user: dict = Depe
     """Upload a reference image from the user's computer; returns its public URL."""
     suffix = Path(file.filename or "image.png").suffix.lower()
     if suffix not in ALLOWED_IMAGE_EXTS:
-        raise HTTPException(400, f"Unsupported image format '{suffix}'. Use: {', '.join(sorted(ALLOWED_IMAGE_EXTS))}")
+        raise HTTPException(
+            400, f"Unsupported image format '{suffix}'. Use: {', '.join(sorted(ALLOWED_IMAGE_EXTS))}"
+        )
 
     asset_id = uuid.uuid4().hex[:12]
     tmp = Path(tempfile.gettempdir()) / f"gen_upload_{asset_id}{suffix}"
     try:
         tmp.write_bytes(await file.read())
         content_type = file.content_type or f"image/{suffix.lstrip('.')}"
-        url = upload_to_storage(gen_service.ASSET_BUCKET, f"gen/uploads/{asset_id}{suffix}", str(tmp), content_type)
+        url = upload_to_storage(
+            gen_service.ASSET_BUCKET, f"gen/uploads/{asset_id}{suffix}", str(tmp), content_type
+        )
     finally:
         tmp.unlink(missing_ok=True)
 
@@ -67,12 +69,14 @@ class ChatMessage(BaseModel):
     role: str
     content: str
 
+
 class ChatRequest(BaseModel):
-    session_id: Optional[str] = None
-    messages: List[ChatMessage] # Full history including the new user message
-    reference_image_urls: Optional[List[str]] = None  # Uploaded visual references (this turn)
-    context: Optional[str] = None  # Persistent campaign brief / notes for this chat
+    session_id: str | None = None
+    messages: list[ChatMessage]  # Full history including the new user message
+    reference_image_urls: list[str] | None = None  # Uploaded visual references (this turn)
+    context: str | None = None  # Persistent campaign brief / notes for this chat
     web_enabled: bool = False  # Allow Claude to use the native web_search tool
+
 
 @router.post("/chat")
 async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
@@ -98,11 +102,13 @@ async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
 
         # 2. Get the latest user message to save to DB immediately
         latest_user_message = req.messages[-1]
-        sb.table("chat_messages").insert({
-            "session_id": session_id,
-            "role": latest_user_message.role,
-            "content": latest_user_message.content
-        }).execute()
+        sb.table("chat_messages").insert(
+            {
+                "session_id": session_id,
+                "role": latest_user_message.role,
+                "content": latest_user_message.content,
+            }
+        ).execute()
     except HTTPException:
         raise
     except Exception as e:
@@ -111,8 +117,8 @@ async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
     # 3. Format messages for Anthropic. Attach any uploaded reference images to the
     #    latest user turn as image blocks so Claude can see them, and download the
     #    bytes to hand to the Gemini/Veo generators for image-to-image / image-to-video.
-    anthropic_msgs: List[Dict[str, Any]] = [{"role": m.role, "content": m.content} for m in req.messages]
-    reference_images: List[Tuple[bytes, str]] = []
+    anthropic_msgs: list[dict[str, Any]] = [{"role": m.role, "content": m.content} for m in req.messages]
+    reference_images: list[tuple[bytes, str]] = []
     if req.reference_image_urls:
         image_blocks = []
         for url in req.reference_image_urls:
@@ -157,37 +163,38 @@ async def handle_chat(req: ChatRequest, user: dict = Depends(get_current_user)):
     # Inject the persistent campaign context (if any) so it shapes every prompt this turn.
     if req.context and req.context.strip():
         system_prompt += (
-            "\n\nCAMPAIGN CONTEXT (apply this to everything you generate this chat):\n"
-            f"{req.context.strip()}"
+            f"\n\nCAMPAIGN CONTEXT (apply this to everything you generate this chat):\n{req.context.strip()}"
         )
 
     started_video_jobs: list = []
     try:
         result = await gen_service.chat(
-            anthropic_msgs, system_prompt, session_id=session_id, user_id=uid,
-            reference_images=reference_images, web_enabled=req.web_enabled,
+            anthropic_msgs,
+            system_prompt,
+            session_id=session_id,
+            user_id=uid,
+            reference_images=reference_images,
+            web_enabled=req.web_enabled,
         )
         assistant_reply = result["reply"]
         started_video_jobs = result.get("video_jobs", [])
     except Exception as e:
         err_msg = str(e)
-        if hasattr(e, 'exceptions'):
+        if hasattr(e, "exceptions"):
             sub_errs = ", ".join(repr(sub_e) for sub_e in e.exceptions)
             err_msg += f" | Sub-errors: {sub_errs}"
         assistant_reply = f"Error communicating with AI: {err_msg}"
 
     # 5. Save assistant reply to DB
     try:
-        sb.table("chat_messages").insert({
-            "session_id": session_id,
-            "role": "assistant",
-            "content": assistant_reply
-        }).execute()
+        sb.table("chat_messages").insert(
+            {"session_id": session_id, "role": "assistant", "content": assistant_reply}
+        ).execute()
     except Exception as e:
         # We don't want to crash the endpoint if saving the assistant's reply fails,
         # we can just append it to the reply or log it.
         assistant_reply += f"\n\n[Warning: Failed to save reply to history: {str(e)}]"
-    
+
     return {
         "session_id": session_id,
         "reply": assistant_reply,
@@ -209,11 +216,13 @@ def video_status(job_id: str, user: dict = Depends(get_current_user)):
         if sid:
             try:
                 sb = get_supabase()
-                sb.table("chat_messages").insert({
-                    "session_id": sid,
-                    "role": "assistant",
-                    "content": f"![Generated video]({job['url']})",
-                }).execute()
+                sb.table("chat_messages").insert(
+                    {
+                        "session_id": sid,
+                        "role": "assistant",
+                        "content": f"![Generated video]({job['url']})",
+                    }
+                ).execute()
             except Exception as e:  # noqa: BLE001
                 print(f"[higgsfield] Failed to persist video message: {e}")
         job["persisted"] = True
@@ -235,6 +244,7 @@ def get_sessions(user: dict = Depends(get_current_user)):
     res = query.order("updated_at", desc=True).execute()
     return {"sessions": res.data}
 
+
 @router.get("/sessions/{session_id}/messages")
 def get_messages(session_id: str, user: dict = Depends(get_current_user)):
     sb = get_supabase()
@@ -242,5 +252,11 @@ def get_messages(session_id: str, user: dict = Depends(get_current_user)):
     owner = sb.table("chat_sessions").select("user_id").eq("id", session_id).limit(1).execute()
     if owner.data and owner.data[0].get("user_id") not in (user_id_of(user), None) and not is_admin(user):
         raise HTTPException(status_code=404, detail="Session not found")
-    res = sb.table("chat_messages").select("*").eq("session_id", session_id).order("created_at", desc=False).execute()
+    res = (
+        sb.table("chat_messages")
+        .select("*")
+        .eq("session_id", session_id)
+        .order("created_at", desc=False)
+        .execute()
+    )
     return {"messages": res.data}

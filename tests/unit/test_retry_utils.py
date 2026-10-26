@@ -1,4 +1,5 @@
 """Unit tests for retry_utils.retry."""
+
 import pytest
 
 from retry_utils import retry

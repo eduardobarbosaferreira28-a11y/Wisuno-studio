@@ -1,0 +1,8 @@
+title = "Wisuno gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Supabase publishable keys (sb_publishable_*) are public by design and ship to browsers. Never allowlist service-role keys (AGENTS.md rule 6)."
+regexes = ['''sb_publishable_[A-Za-z0-9_\-]+''']

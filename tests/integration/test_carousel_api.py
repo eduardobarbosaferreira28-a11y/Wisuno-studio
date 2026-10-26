@@ -4,12 +4,12 @@ Mounts only the carousel router on a throwaway FastAPI app, overrides auth, and
 stubs the job layer so no AI/network call happens. Verifies request wiring:
 /run starts a job and /status surfaces the new `warnings` field.
 """
-import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
+import pytest
 import routers.carousel as carousel_router
 from dependencies.auth import get_current_user
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -76,6 +76,7 @@ def test_daily_picks_article_and_starts_job(client, monkeypatch):
 
 def test_daily_returns_404_when_no_article(client, monkeypatch):
     import news_picker
+
     monkeypatch.setattr(news_picker, "pick_top_article", lambda *a, **k: None)
 
     resp = client.post("/api/carousel/daily", json={"languages": ["en"]})
@@ -84,8 +85,14 @@ def test_daily_returns_404_when_no_article(client, monkeypatch):
 
 def test_today_previews_article(client, monkeypatch):
     import news_picker
-    fake_article = {"title": "CPI hot", "url": "https://x/cpi", "source": "Src",
-                    "score": 18, "rationale": "Inflation surprise."}
+
+    fake_article = {
+        "title": "CPI hot",
+        "url": "https://x/cpi",
+        "source": "Src",
+        "score": 18,
+        "rationale": "Inflation surprise.",
+    }
     monkeypatch.setattr(news_picker, "pick_top_article", lambda *a, **k: fake_article)
 
     resp = client.get("/api/carousel/today")

@@ -11,20 +11,20 @@ Functions:
 
 All renders use hf_render.render_hyperframes() which shells through cmd.exe.
 """
+
 from __future__ import annotations
+
+import concurrent.futures
 import json
 import re
-import os
-import concurrent.futures
 from pathlib import Path
-
 
 # ── Brand constants ────────────────────────────────────────────────────────────
 ORANGE = "#F56A21"
-BG     = "#F5F5F5"
-CARD   = "#FFFFFF"
-TEXT   = "#1A1A1A"
-BODY   = "#333333"
+BG = "#F5F5F5"
+CARD = "#FFFFFF"
+TEXT = "#1A1A1A"
+BODY = "#333333"
 BORDER = "#E0E0E0"
 
 
@@ -39,6 +39,7 @@ def _logo_dataurl() -> str:
 
 # ── CAPTION OVERLAY (transparent MOV) ─────────────────────────────────────────
 
+
 def build_caption_overlay(
     transcript_json: Path,
     ranges: list[dict],
@@ -51,8 +52,8 @@ def build_caption_overlay(
     Build HyperFrames HTML caption overlay with exact sync -> render overlay.mov
     Returns path to the rendered overlay.mov
     """
-    from helpers.hf_render import render_hyperframes
     from helpers.build_karaoke_ass import build_karaoke_ass
+    from helpers.hf_render import render_hyperframes
 
     slot_dir = edit_dir / "overlays" / "captions"
     slot_dir.mkdir(parents=True, exist_ok=True)
@@ -74,13 +75,8 @@ def _build_caption_html(lines: list[list[dict]], duration: float) -> str:
     # Build div elements
     cap_divs = []
     for i, line in enumerate(lines):
-        word_spans = "".join(
-            f'<span class="w" id="c{i}w{j}">{w["text"]}</span>'
-            for j, w in enumerate(line)
-        )
-        cap_divs.append(
-            f'<div class="cap" id="cap{i}"><div class="cap-box">{word_spans}</div></div>'
-        )
+        word_spans = "".join(f'<span class="w" id="c{i}w{j}">{w["text"]}</span>' for j, w in enumerate(line))
+        cap_divs.append(f'<div class="cap" id="cap{i}"><div class="cap-box">{word_spans}</div></div>')
 
     # Build GSAP timeline JS with exact sync
     tl_lines = []
@@ -89,15 +85,15 @@ def _build_caption_html(lines: list[list[dict]], duration: float) -> str:
             continue
         t0 = line[0]["start"]
         t1 = line[-1]["end"] + 0.15  # tail padding
-        
+
         # Turn the line container on and off
         tl_lines.append(f'  tl.set("#cap{i}", {{opacity:1}}, {t0:.3f});')
         tl_lines.append(f'  tl.set("#cap{i}", {{opacity:0}}, {t1:.3f});')
-        
+
         # Word highlights exactly synced to start and end times
         for j, w in enumerate(line):
             start = w["start"]
-            end   = w["end"]
+            end = w["end"]
             tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{ORANGE}"}}, {start:.3f});')
             tl_lines.append(f'  tl.set("#c{i}w{j}", {{color:"{TEXT}"}}, {end:.3f});')
 
@@ -152,6 +148,7 @@ window.__timelines["captions"] = tl;
 
 # ── GRAPHIC SLIDES (3 × opaque MP4) ───────────────────────────────────────────
 
+
 def build_graphic_slides(
     packed_md: str,
     transcript_json: Path,
@@ -177,7 +174,10 @@ def build_graphic_slides(
         model=anthropic_model,
         max_tokens=1024,
         system="You are a JSON API. Return only a JSON array, no prose.",
-        messages=[{"role": "user", "content": f"""Analyze this market video transcript.
+        messages=[
+            {
+                "role": "user",
+                "content": f"""Analyze this market video transcript.
 Extract exactly 3 key data points suitable for graphic slides.
 Each slide should highlight a specific financial stat or market move.
 
@@ -212,7 +212,9 @@ For Variant B use:
   "variant": "bullets",
   "bullets": ["UP 2.1%", "NEAR ATH", "WATCH EARNINGS"],
   "stat_num": null, "stat_unit": null, "stat_note": null
-"""}],
+""",
+            }
+        ],
     )
 
     raw = resp.content[0].text.strip()
@@ -221,16 +223,24 @@ For Variant B use:
     slides_data = []
     if m:
         depth, in_str, esc = 0, False, False
-        for i, ch in enumerate(raw[m.start():], m.start()):
-            if esc:    esc = False; continue
-            if ch == "\\" and in_str: esc = True; continue
-            if ch == '"': in_str = not in_str; continue
-            if in_str: continue
-            if ch == "[": depth += 1
+        for i, ch in enumerate(raw[m.start() :], m.start()):
+            if esc:
+                esc = False
+                continue
+            if ch == "\\" and in_str:
+                esc = True
+                continue
+            if ch == '"':
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if ch == "[":
+                depth += 1
             elif ch == "]":
                 depth -= 1
                 if depth == 0:
-                    slides_data = json.loads(raw[m.start():i+1])
+                    slides_data = json.loads(raw[m.start() : i + 1])
                     break
 
     overlays = [None] * len(slides_data[:3])
@@ -240,9 +250,9 @@ For Variant B use:
         start_in_output = _find_trigger_time(trigger, word_output_times)
 
         slot_name = re.sub(r"[^a-z0-9]+", "_", sd.get("topic_keyword", f"slide_{idx}").lower())
-        slot_dir  = edit_dir / "overlays" / slot_name
+        slot_dir = edit_dir / "overlays" / slot_name
         slot_dir.mkdir(parents=True, exist_ok=True)
-        out_path  = slot_dir / "slide.mp4"
+        out_path = slot_dir / "slide.mp4"
 
         html = _build_slide_html(sd, slot_name)
         (slot_dir / "index.html").write_text(html, encoding="utf-8")
@@ -251,10 +261,10 @@ For Variant B use:
         render_hyperframes(slot_dir, out_path, fmt="mp4")
 
         return {
-            "file":            str(out_path.relative_to(edit_dir)),
+            "file": str(out_path.relative_to(edit_dir)),
             "start_in_output": round(start_in_output, 3),
-            "duration":        4.0,
-            "abs_path":        str(out_path),
+            "duration": 4.0,
+            "abs_path": str(out_path),
         }
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -266,13 +276,15 @@ For Variant B use:
     return overlays
 
 
-def _build_word_output_times(transcript_json: Path, ranges: list[dict], fps: float | None = None) -> list[dict]:
+def _build_word_output_times(
+    transcript_json: Path, ranges: list[dict], fps: float | None = None
+) -> list[dict]:
     """Return list of {text, output_time} for every word in the EDL ranges.
 
     Snaps each segment's duration to a whole frame (matching the extracted base
     video) so graphic-slide trigger times stay aligned as the edit progresses.
     """
-    data  = json.loads(transcript_json.read_text(encoding="utf-8"))
+    data = json.loads(transcript_json.read_text(encoding="utf-8"))
     words = [w for w in data.get("words", []) if w.get("type") == "word"]
     result = []
     accumulated = 0.0
@@ -282,10 +294,12 @@ def _build_word_output_times(transcript_json: Path, ranges: list[dict], fps: flo
         for w in words:
             ws = float(w["start"])
             if r_start <= ws < r_end:
-                result.append({
-                    "text":        w["text"].lower().strip(".,!?;:\"'"),
-                    "output_time": accumulated + (ws - r_start),
-                })
+                result.append(
+                    {
+                        "text": w["text"].lower().strip(".,!?;:\"'"),
+                        "output_time": accumulated + (ws - r_start),
+                    }
+                )
         accumulated += snap(r_end - r_start)
     return result
 
@@ -297,7 +311,7 @@ def _find_trigger_time(trigger_phrase: str, word_times: list[dict]) -> float:
         return 5.0  # fallback
     texts = [w["text"] for w in word_times]
     for i in range(len(texts) - len(trigger_words) + 1):
-        if texts[i:i+len(trigger_words)] == trigger_words:
+        if texts[i : i + len(trigger_words)] == trigger_words:
             return word_times[i]["output_time"]
     # Fallback: find first matching word
     for w in word_times:
@@ -307,19 +321,19 @@ def _find_trigger_time(trigger_phrase: str, word_times: list[dict]) -> float:
 
 
 def _build_slide_html(sd: dict, slide_id: str) -> str:
-    hl1  = sd.get("headline_line1", "")
-    hl2  = sd.get("headline_line2", "")
-    hlw  = sd.get("headline_highlight", hl2)
-    sub  = sd.get("subtitle", "")
-    var  = sd.get("variant", "big_stat")
+    hl1 = sd.get("headline_line1", "")
+    hl2 = sd.get("headline_line2", "")
+    hlw = sd.get("headline_highlight", hl2)
+    sub = sd.get("subtitle", "")
+    var = sd.get("variant", "big_stat")
     cap_main = sd.get("caption_main", "")
-    cap_hl   = sd.get("caption_hl", "")
+    cap_hl = sd.get("caption_hl", "")
 
     # Highlight keyword in headline
     hl2_html = hl2.replace(hlw, f'<span class="hl">{hlw}</span>') if hlw in hl2 else hl2
 
     if var == "big_stat":
-        num  = sd.get("stat_num", "")
+        num = sd.get("stat_num", "")
         unit = sd.get("stat_unit", "")
         note = sd.get("stat_note", "")
         card_html = f"""<div id="card">
@@ -413,6 +427,7 @@ window.__timelines["{slide_id}"] = tl;
 
 # ── DISCLAIMER OVERLAY (transparent MOV) ──────────────────────────────────────
 
+
 def build_disclaimer_overlay(edit_dir: Path, edit_duration_s: float) -> Path:
     """Generate + render rotating 3-sentence disclaimer as transparent MOV."""
     from helpers.hf_render import render_hyperframes
@@ -471,6 +486,7 @@ window.__timelines["disclaimer"] = tl;
 
 # ── BRANDED OUTRO (5-second opaque MP4) ───────────────────────────────────────
 
+
 def build_outro(edit_dir: Path) -> Path:
     """Generate + render the branded 5-second outro as opaque MP4."""
     from helpers.hf_render import render_hyperframes
@@ -482,8 +498,8 @@ def build_outro(edit_dir: Path) -> Path:
     logo_dataurl = _logo_dataurl()
     logo_html = (
         f'<img src="{logo_dataurl}" style="width:420px;height:auto;" alt="Wisuno">'
-        if logo_dataurl else
-        '<div style="font-size:72px;font-weight:900;color:#1A1A1A;">WISUNO</div>'
+        if logo_dataurl
+        else '<div style="font-size:72px;font-weight:900;color:#1A1A1A;">WISUNO</div>'
     )
 
     html = f"""<!DOCTYPE html>

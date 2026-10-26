@@ -16,6 +16,7 @@ helper returns ``None`` so callers fall back to the existing static SVG.
 Public API:
     chart_data_uri_for(symbol, output_path=None) -> str | None
 """
+
 from __future__ import annotations
 
 import base64
@@ -24,18 +25,18 @@ from pathlib import Path
 from retry_utils import retry
 
 # ── Brand tokens (mirror swipeable_carousel.py) ──────────────────────────────
-_BG          = "#0A0A0A"
-_ORANGE      = "#FF6700"
+_BG = "#0A0A0A"
+_ORANGE = "#FF6700"
 _GRID_STROKE = "#222222"
 
 # ── SVG canvas — aspect (~1.1) chosen to match the chart container so
 #    object-fit:cover crops as little of the line as possible. ───────────────
 _VB_W = 900
 _VB_H = 820
-_PAD_X = 8       # keep the line just inside the left/right edges
-_PAD_TOP = 90    # headroom so the peak isn't clipped by cover-crop
+_PAD_X = 8  # keep the line just inside the left/right edges
+_PAD_TOP = 90  # headroom so the peak isn't clipped by cover-crop
 _PAD_BOTTOM = 90
-_N_GRID = 4      # horizontal grid lines
+_N_GRID = 4  # horizontal grid lines
 
 
 def fetch_series(symbol: str, period: str = "6mo", interval: str = "1d") -> list[float]:
@@ -94,25 +95,24 @@ def render_chart_svg(points: list[float], output_path: Path | None = None) -> st
     for g in range(1, _N_GRID + 1):
         gy = round(plot_top + plot_h * g / (_N_GRID + 1), 1)
         grid_lines += (
-            f'<line x1="0" y1="{gy}" x2="{_VB_W}" y2="{gy}" '
-            f'stroke="{_GRID_STROKE}" stroke-width="1"/>'
+            f'<line x1="0" y1="{gy}" x2="{_VB_W}" y2="{gy}" stroke="{_GRID_STROKE}" stroke-width="1"/>'
         )
 
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_VB_W} {_VB_H}" '
         f'preserveAspectRatio="xMidYMid slice">'
-        f'<defs>'
+        f"<defs>"
         f'<linearGradient id="og2" x1="0" y1="0" x2="0" y2="1">'
         f'<stop offset="0%" stop-color="{_ORANGE}" stop-opacity="0.3"/>'
         f'<stop offset="100%" stop-color="{_ORANGE}" stop-opacity="0"/>'
-        f'</linearGradient>'
-        f'</defs>'
+        f"</linearGradient>"
+        f"</defs>"
         f'<rect x="0" y="0" width="{_VB_W}" height="{_VB_H}" fill="{_BG}"/>'
-        f'{grid_lines}'
+        f"{grid_lines}"
         f'<path d="{area_d}" fill="url(#og2)"/>'
         f'<path d="{line_d}" fill="none" stroke="{_ORANGE}" stroke-width="4" '
         f'stroke-linejoin="round" stroke-linecap="round"/>'
-        f'</svg>'
+        f"</svg>"
     )
 
     if output_path is not None:

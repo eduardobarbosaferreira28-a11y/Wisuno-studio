@@ -30,6 +30,7 @@ OUTPUT:
     carousel_zh-CN.html
     carousel_th.html
 """
+
 import argparse
 import json
 import re
@@ -45,6 +46,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 import anthropic
 
+from chart_renderer import chart_data_uri_for, svg_to_data_uri
 from config import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL,
@@ -55,7 +57,6 @@ from config import (
     OUTPUT_DIR,
     PROMPTS_DIR,
 )
-from chart_renderer import chart_data_uri_for, svg_to_data_uri
 from content_extractor import extract_from_text, extract_from_url
 from image_generator import (
     bytes_to_data_uri,
@@ -81,17 +82,18 @@ def _anthropic_client() -> "anthropic.Anthropic":
 # ── Language config ───────────────────────────────────────────────────────────
 
 LANGUAGES: dict[str, str] = {
-    "en":    "English",
+    "en": "English",
     "zh-TW": "Traditional Chinese (繁體中文)",
     "zh-CN": "Simplified Chinese (简体中文)",
-    "th":    "Thai (ภาษาไทย)",
-    "sw":    "Kiswahili",
+    "th": "Thai (ภาษาไทย)",
+    "sw": "Kiswahili",
     "pt-BR": "Brazilian Portuguese (Português do Brasil)",
-    "vi":    "Vietnamese (Tiếng Việt)",
+    "vi": "Vietnamese (Tiếng Việt)",
 }
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _slugify(text: str, max_len: int = 48) -> str:
     slug = text.lower()
@@ -108,16 +110,18 @@ def _load_prompt(num_slides: int, content_type: str = "market_insight") -> str:
     else:
         fname = "script_prompt.txt"
     template = (PROMPTS_DIR / fname).read_text(encoding="utf-8")
-    return template.replace("{min_slides}", str(MIN_SLIDES)) \
-                   .replace("{max_slides}", str(MAX_SLIDES)) \
-                   .replace("{default_slides}", str(num_slides)) \
-                   .replace("{disclaimer}", DISCLAIMER)
+    return (
+        template.replace("{min_slides}", str(MIN_SLIDES))
+        .replace("{max_slides}", str(MAX_SLIDES))
+        .replace("{default_slides}", str(num_slides))
+        .replace("{disclaimer}", DISCLAIMER)
+    )
 
 
 def _save_caption(script: dict, path: Path) -> None:
-    caption  = script.get("caption", "")
+    caption = script.get("caption", "")
     hashtags = script.get("hashtags", [])
-    text     = caption
+    text = caption
     if hashtags:
         text += "\n\n" + " ".join(f"#{h}" for h in hashtags)
     path.write_text(text, encoding="utf-8")
@@ -125,8 +129,10 @@ def _save_caption(script: dict, path: Path) -> None:
 
 # ── Step 2: Generate English script via Claude ───────────────────────────────
 
-def generate_script(article_text: str, num_slides: int = DEFAULT_SLIDES,
-                    content_type: str = "market_insight") -> dict:
+
+def generate_script(
+    article_text: str, num_slides: int = DEFAULT_SLIDES, content_type: str = "market_insight"
+) -> dict:
     print("\n[2/5] Generating carousel script via Claude...")
     client = _anthropic_client()
     prompt = _load_prompt(num_slides, content_type) + f"\n\nARTICLE:\n{article_text}"
@@ -152,12 +158,12 @@ def generate_script(article_text: str, num_slides: int = DEFAULT_SLIDES,
 
 # ── Step 3: Generate images via Gemini ───────────────────────────────────────
 
-def generate_slide_images(
-    script: dict, images_dir: Path, use_higgsfield: bool = False
-) -> dict[int, str]:
+
+def generate_slide_images(script: dict, images_dir: Path, use_higgsfield: bool = False) -> dict[int, str]:
     """Return slide_number -> data URI for slides that need images."""
     if use_higgsfield:
         from higgsfield_generator import generate_background_image as _gen_bg
+
         print("\n[3/5] Generating images via Higgsfield Seedream v4...")
     else:
         _gen_bg = generate_background_image
@@ -166,13 +172,13 @@ def generate_slide_images(
 
     for slide in script.get("slides", []):
         stype = slide.get("type", "")
-        snum  = slide.get("slide_number", 0)
+        snum = slide.get("slide_number", 0)
 
         if slide.get("background_image_description"):
-            desc     = slide["background_image_description"]
+            desc = slide["background_image_description"]
             img_name = "cover_bg.jpg" if stype == "cover" else f"slide_{snum}_bg.jpg"
             img_path = images_dir / img_name
-            label    = "Cover bg" if stype == "cover" else f"Slide {snum} bg"
+            label = "Cover bg" if stype == "cover" else f"Slide {snum} bg"
             if img_path.exists():
                 print(f"     -> {label}: reusing cached {img_path.name}")
                 slide_images[snum] = bytes_to_data_uri(img_path.read_bytes())
@@ -181,15 +187,15 @@ def generate_slide_images(
                 try:
                     img_bytes = _gen_bg(desc, img_path)
                     slide_images[snum] = bytes_to_data_uri(img_bytes)
-                    print(f"        OK ({len(img_bytes)//1024} KB)")
+                    print(f"        OK ({len(img_bytes) // 1024} KB)")
                 except Exception as exc:
                     print(f"        WARNING: {exc} -- using plain dark background.")
                 time.sleep(1)
 
         elif stype == "chart_slide":
-            chart_asset  = slide.get("chart_asset", "price action")
+            chart_asset = slide.get("chart_asset", "price action")
             chart_symbol = slide.get("chart_symbol", "")
-            img_path     = images_dir / f"chart_{snum}.svg"
+            img_path = images_dir / f"chart_{snum}.svg"
             if img_path.exists():
                 print(f"     -> Chart {snum}: reusing cached {img_path.name}")
                 slide_images[snum] = svg_to_data_uri(img_path.read_text(encoding="utf-8"))
@@ -253,11 +259,13 @@ def translate_script(script: dict, lang_code: str, retries: int = 2) -> dict:
         if attempt > 0:
             print(f"        Retry {attempt}/{retries} (invalid JSON from Claude)...")
             time.sleep(2)
-            messages.append({
-                "role": "user", 
-                "content": f"The JSON you returned was invalid. Error: {last_exc}\nPlease fix the syntax errors (such as unescaped double quotes inside strings or trailing commas) and return ONLY the raw corrected JSON."
-            })
-            
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"The JSON you returned was invalid. Error: {last_exc}\nPlease fix the syntax errors (such as unescaped double quotes inside strings or trailing commas) and return ONLY the raw corrected JSON.",
+                }
+            )
+
         message = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=4096,
@@ -265,17 +273,17 @@ def translate_script(script: dict, lang_code: str, retries: int = 2) -> dict:
         )
         raw = message.content[0].text.strip()
         messages.append({"role": "assistant", "content": raw})
-        
+
         # Robustly extract JSON block if wrapped in markdown
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if match:
             raw = match.group(1).strip()
         else:
             # Fallback: find first { and last }
-            start = raw.find('{')
-            end = raw.rfind('}')
+            start = raw.find("{")
+            end = raw.rfind("}")
             if start != -1 and end != -1:
-                raw = raw[start:end+1]
+                raw = raw[start : end + 1]
 
         try:
             return json.loads(raw)
@@ -289,6 +297,7 @@ def translate_script(script: dict, lang_code: str, retries: int = 2) -> dict:
 
 # ── Step 5: Build all 4 language carousels ────────────────────────────────────
 
+
 def build_all_carousels(
     scripts: dict[str, dict],
     slide_images: dict[int, str],
@@ -296,14 +305,15 @@ def build_all_carousels(
 ) -> None:
     print("\n[5/5] Building swipeable carousel HTML (4 languages)...")
     for lang_code, script in scripts.items():
-        html      = build_swipeable_html(script, slide_images, language=lang_code)
-        filename  = f"carousel_{lang_code}.html"
-        out_path  = output_dir / filename
+        html = build_swipeable_html(script, slide_images, language=lang_code)
+        filename = f"carousel_{lang_code}.html"
+        out_path = output_dir / filename
         out_path.write_text(html, encoding="utf-8")
-        print(f"     -> {filename}  ({len(html)//1024} KB)  [{LANGUAGES[lang_code]}]")
+        print(f"     -> {filename}  ({len(html) // 1024} KB)  [{LANGUAGES[lang_code]}]")
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
+
 
 def run(
     url: str | None = None,
@@ -338,7 +348,7 @@ def run(
         en_script = generate_script(article_text, num_slides, content_type=content_type)
 
     # ── Set up output directory ───────────────────────────────────────────────
-    slug       = _slugify(en_script.get("title", "carousel"))
+    slug = _slugify(en_script.get("title", "carousel"))
     output_dir = OUTPUT_DIR / slug
     images_dir = output_dir / "images"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -377,6 +387,7 @@ def run(
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Wisuno HTML Carousel Generator",
@@ -384,13 +395,14 @@ def main() -> None:
         epilog=__doc__,
     )
     src = parser.add_mutually_exclusive_group(required=True)
-    src.add_argument("--url",    help="News article URL to fetch and process.")
-    src.add_argument("--text",   help="Raw article text (paste directly).")
-    src.add_argument("--script", type=Path,
-                     help="Path to an existing script.json to skip Claude generation.")
+    src.add_argument("--url", help="News article URL to fetch and process.")
+    src.add_argument("--text", help="Raw article text (paste directly).")
+    src.add_argument("--script", type=Path, help="Path to an existing script.json to skip Claude generation.")
     parser.add_argument(
         "--slides",
-        type=int, default=DEFAULT_SLIDES, metavar="N",
+        type=int,
+        default=DEFAULT_SLIDES,
+        metavar="N",
         help=f"Target slide count (default: {DEFAULT_SLIDES}, range {MIN_SLIDES}-{MAX_SLIDES}).",
     )
     parser.add_argument(
@@ -410,7 +422,7 @@ def main() -> None:
         action="store_true",
         help="Use Higgsfield Seedream v4 instead of Gemini Imagen for cover background.",
     )
-    args   = parser.parse_args()
+    args = parser.parse_args()
     slides = max(MIN_SLIDES, min(MAX_SLIDES, args.slides))
 
     try:
@@ -423,19 +435,20 @@ def main() -> None:
             content_type=args.content_type,
             use_higgsfield=args.higgsfield,
         )
-        print(f"\n{'='*60}")
-        print(f"  Carousels ready!")
+        print(f"\n{'=' * 60}")
+        print("  Carousels ready!")
         print(f"  Output : {out_dir}")
         for lang_code, lang_name in LANGUAGES.items():
             f = out_dir / f"carousel_{lang_code}.html"
             print(f"  [{lang_code:5s}] file:///{f.as_posix()}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
     except KeyboardInterrupt:
         print("\nAborted.")
         sys.exit(1)
     except Exception as exc:
         print(f"\n  ERROR: {exc}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

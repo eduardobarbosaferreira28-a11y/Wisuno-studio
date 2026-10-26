@@ -13,6 +13,7 @@ Setup:
      - Copy the key
   3. Add GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID to your .env
 """
+
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -23,7 +24,7 @@ from config import GOOGLE_CSE_API_KEY, GOOGLE_CSE_ID, REQUEST_TIMEOUT
 _CSE_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 
 # Minimum dimensions to consider an image "high quality"
-_MIN_WIDTH  = 800
+_MIN_WIDTH = 800
 _MIN_HEIGHT = 600
 
 
@@ -75,14 +76,14 @@ def _build_query(slide: dict, market_tag: str) -> str:
     icon = slide.get("icon_suggestion", "")
 
     icon_terms = {
-        "chart_up":    "stock market rally chart",
-        "chart_down":  "stock market crash chart",
-        "dollar":      "dollar currency finance",
-        "oil_barrel":  "oil barrel crude petroleum",
-        "warning":     "financial risk warning",
-        "globe":       "global economy world markets",
-        "clock":       "trading session market hours",
-        "shield":      "financial regulation compliance",
+        "chart_up": "stock market rally chart",
+        "chart_down": "stock market crash chart",
+        "dollar": "dollar currency finance",
+        "oil_barrel": "oil barrel crude petroleum",
+        "warning": "financial risk warning",
+        "globe": "global economy world markets",
+        "clock": "trading session market hours",
+        "shield": "financial regulation compliance",
         "arrow_right": "market momentum growth",
     }
     icon_hint = icon_terms.get(icon, "financial markets")
@@ -93,14 +94,14 @@ def _build_query(slide: dict, market_tag: str) -> str:
 def _search_one(query: str, output_dir: Path, filename_stem: str) -> dict | None:
     """Run a Google Custom Search and download the first qualifying image."""
     params = {
-        "key":        GOOGLE_CSE_API_KEY,
-        "cx":         GOOGLE_CSE_ID,
-        "q":          query,
+        "key": GOOGLE_CSE_API_KEY,
+        "cx": GOOGLE_CSE_ID,
+        "q": query,
         "searchType": "image",
-        "imgSize":    "xlarge",
-        "imgType":    "photo",
-        "safe":       "active",
-        "num":        8,
+        "imgSize": "xlarge",
+        "imgType": "photo",
+        "safe": "active",
+        "num": 8,
     }
 
     try:
@@ -113,9 +114,9 @@ def _search_one(query: str, output_dir: Path, filename_stem: str) -> dict | None
 
     for item in items:
         img_meta = item.get("image", {})
-        width  = img_meta.get("width",  0)
+        width = img_meta.get("width", 0)
         height = img_meta.get("height", 0)
-        url    = item.get("link", "")
+        url = item.get("link", "")
 
         if not url or width < _MIN_WIDTH or height < _MIN_HEIGHT:
             continue

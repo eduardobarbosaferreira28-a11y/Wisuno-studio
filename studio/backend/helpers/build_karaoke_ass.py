@@ -17,12 +17,13 @@ Usage (called internally by video_service):
         edit_duration_s,       # total edit duration (for ASS header)
     )
 """
+
 from __future__ import annotations
+
 import difflib
 import json
 import string
 from pathlib import Path
-
 
 # ── ASS constants ──────────────────────────────────────────────────────────────
 # Orange (active) = #F56A21 in BGR ASS = &H00216AF5
@@ -44,15 +45,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 MAX_WORDS_PER_LINE = 4
 MAX_CHARS_PER_LINE = 24
-WORD_GAP_BREAK = 0.8   # force new line if gap between words > this
+WORD_GAP_BREAK = 0.8  # force new line if gap between words > this
 
 
 def _ts(secs: float) -> str:
     """Convert seconds to ASS timestamp H:MM:SS.cc"""
     cs = int(round(secs * 100))
-    h  = cs // 360000;   cs %= 360000
-    m  = cs // 6000;     cs %= 6000
-    s  = cs // 100;      cs %= 100
+    h = cs // 360000
+    cs %= 360000
+    m = cs // 6000
+    cs %= 6000
+    s = cs // 100
+    cs %= 100
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
@@ -133,11 +137,13 @@ def align_edit_to_timings(range_words: list[dict], user_words: list[str]) -> lis
             span1 = float(range_words[i2 - 1]["end"])
             n = j2 - j1
             for k in range(n):
-                out.append({
-                    "text":  user_words[j1 + k],
-                    "start": span0 + (span1 - span0) * k / n,
-                    "end":   span0 + (span1 - span0) * (k + 1) / n,
-                })
+                out.append(
+                    {
+                        "text": user_words[j1 + k],
+                        "start": span0 + (span1 - span0) * k / n,
+                        "end": span0 + (span1 - span0) * (k + 1) / n,
+                    }
+                )
         elif tag == "delete":
             continue  # user removed these words; timing absorbed by neighbours
         elif tag == "insert":
@@ -158,11 +164,13 @@ def align_edit_to_timings(range_words: list[dict], user_words: list[str]) -> lis
                 g1 = g0 + 0.4  # no real gap — carve a small window
             n = j2 - j1
             for k in range(n):
-                out.append({
-                    "text":  user_words[j1 + k],
-                    "start": g0 + (g1 - g0) * k / n,
-                    "end":   g0 + (g1 - g0) * (k + 1) / n,
-                })
+                out.append(
+                    {
+                        "text": user_words[j1 + k],
+                        "start": g0 + (g1 - g0) * k / n,
+                        "end": g0 + (g1 - g0) * (k + 1) / n,
+                    }
+                )
     return out
 
 
@@ -184,8 +192,8 @@ def build_karaoke_ass(
 
     for rng in ranges:
         r_start = float(rng["start"])
-        r_end   = float(rng["end"])
-        dur     = r_end - r_start
+        r_end = float(rng["end"])
+        dur = r_end - r_start
 
         range_words = words_in_range(words, r_start, r_end)
 
@@ -211,12 +219,14 @@ def build_karaoke_ass(
             ws = float(w["start"])
             we = float(w["end"])
             out_start = accumulated + (ws - r_start)
-            out_end   = accumulated + (min(we, r_end) - r_start)
-            output_words.append({
-                "text":  w["text"].strip(),
-                "start": out_start,
-                "end":   out_end,
-            })
+            out_end = accumulated + (min(we, r_end) - r_start)
+            output_words.append(
+                {
+                    "text": w["text"].strip(),
+                    "start": out_start,
+                    "end": out_end,
+                }
+            )
 
         accumulated += _snap_dur(dur, fps)
 
@@ -253,7 +263,7 @@ def build_karaoke_ass(
     events = []
     for line in lines:
         line_start = line[0]["start"]
-        line_end   = line[-1]["end"] + 0.15   # small tail padding
+        line_end = line[-1]["end"] + 0.15  # small tail padding
 
         # Build karaoke text: {\\k<cs>}WORD for each word
         karaoke_parts = []
@@ -268,9 +278,7 @@ def build_karaoke_ass(
             cursor = w["end"]
 
         text = " ".join(karaoke_parts)
-        events.append(
-            f"Dialogue: 0,{_ts(line_start)},{_ts(line_end)},Default,,0,0,0,,{text}"
-        )
+        events.append(f"Dialogue: 0,{_ts(line_start)},{_ts(line_end)},Default,,0,0,0,,{text}")
 
     output_path.write_text(_ASS_HEADER + "\n" + "\n".join(events), encoding="utf-8")
     return lines

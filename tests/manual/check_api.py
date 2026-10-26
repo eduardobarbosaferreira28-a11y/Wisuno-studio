@@ -1,6 +1,5 @@
-import urllib.request
 import json
-import sys
+import urllib.request
 
 try:
     with urllib.request.urlopen("https://wisuno-carousel-production.up.railway.app/api/history") as response:

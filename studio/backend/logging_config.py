@@ -11,6 +11,7 @@ once at app startup. Modules then use the stdlib pattern:
 Replaces scattered print() diagnostics so logs carry a timestamp + level +
 module and can be filtered/aggregated by Railway.
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,8 +32,12 @@ _NOISY_LOGGERS = ("httpx", "httpcore")
 # rerouting, their INFO output (uvicorn's "Application startup complete",
 # access logs, etc.) lands on stderr and Railway flags every line as an error.
 _SERVER_LOGGERS = (
-    "uvicorn", "uvicorn.error", "uvicorn.access",
-    "gunicorn", "gunicorn.error", "gunicorn.access",
+    "uvicorn",
+    "uvicorn.error",
+    "uvicorn.access",
+    "gunicorn",
+    "gunicorn.error",
+    "gunicorn.access",
 )
 
 

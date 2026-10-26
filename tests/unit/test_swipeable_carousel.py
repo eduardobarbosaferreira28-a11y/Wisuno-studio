@@ -3,6 +3,7 @@
 Guards the CLAUDE.md ground-truth rules: every slide carries the disclaimer and
 the embedded logo, and all core slide types render without error.
 """
+
 import config
 from swipeable_carousel import build_swipeable_html
 

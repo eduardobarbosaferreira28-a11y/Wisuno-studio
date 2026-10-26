@@ -1,23 +1,30 @@
-import sys
 import json
+import sys
 from pathlib import Path
-sys.path.append(r"C:\Users\Eduardo\Desktop\Triache\Marketing\wisuno-carousel")
-from canva_builder import generate_canva_prompt, CanvaDesignSpec, SlideSpec
 
-spec_path = Path("C:/Users/Eduardo/Desktop/Triache/Marketing/wisuno-carousel/output/iran-ceasefire-shakes-global-markets/canva_spec.json")
-with open(spec_path, "r", encoding="utf-8") as f:
+sys.path.append(r"C:\Users\Eduardo\Desktop\Triache\Marketing\wisuno-carousel")
+from canva_builder import CanvaDesignSpec, SlideSpec, generate_canva_prompt
+
+spec_path = Path(
+    "C:/Users/Eduardo/Desktop/Triache/Marketing/wisuno-carousel/output/iran-ceasefire-shakes-global-markets/canva_spec.json"
+)
+with open(spec_path, encoding="utf-8") as f:
     d = json.load(f)
 
 slides = []
 for s in d["slides"]:
-    slides.append(SlideSpec(
-        slide_number=s["slide_number"],
-        slide_type=s["type"],
-        text_elements=s["text_elements"],
-        background_asset_url=s["background_asset_url"],
-        slide_image={"local_path": s["slide_image_path"], "url": s["slide_image_url"]} if s.get("slide_image_path") else None,
-        layout={}
-    ))
+    slides.append(
+        SlideSpec(
+            slide_number=s["slide_number"],
+            slide_type=s["type"],
+            text_elements=s["text_elements"],
+            background_asset_url=s["background_asset_url"],
+            slide_image={"local_path": s["slide_image_path"], "url": s["slide_image_url"]}
+            if s.get("slide_image_path")
+            else None,
+            layout={},
+        )
+    )
 
 spec = CanvaDesignSpec(
     title=d["title"],
@@ -27,7 +34,7 @@ spec = CanvaDesignSpec(
     canvas_height=1350,
     meme_local_path=d.get("meme_path"),
     meme_url=d.get("meme_url"),
-    slides=slides
+    slides=slides,
 )
 
 canva_prompt = generate_canva_prompt(spec)

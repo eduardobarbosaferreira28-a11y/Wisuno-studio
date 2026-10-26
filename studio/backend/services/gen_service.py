@@ -13,32 +13,33 @@ Replaces the previous Higgsfield MCP integration. Gives Claude two local tools:
 Generated assets are uploaded to the Supabase `wisuno-assets` bucket (same bucket
 used by the carousel and video pipelines) so they survive Railway restarts.
 """
-import os
-import time
-import uuid
+
 import asyncio
 import logging
+import os
 import tempfile
+import time
+import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
 
-from services.supabase_client import upload_to_storage
+from config import BRAND_DIR
 from services.disclaimer import overlay_disclaimer_on_image, overlay_disclaimer_on_video
 from services.history_service import log_job
-from config import BRAND_DIR
+from services.supabase_client import upload_to_storage
 
 logger = logging.getLogger(__name__)
 
 # ── Models ────────────────────────────────────────────────────────────────────
-IMAGE_MODEL_PRO   = "gemini-3-pro-image-preview"   # "Nano Banana Pro"
-IMAGE_MODEL_FLASH = "gemini-2.5-flash-image"        # "Nano Banana" (fallback)
-VIDEO_MODEL       = "veo-3.0-generate-preview"      # Veo 3
-CLAUDE_MODEL      = "claude-sonnet-4-6"
-ASSET_BUCKET      = "wisuno-assets"
+IMAGE_MODEL_PRO = "gemini-3-pro-image-preview"  # "Nano Banana Pro"
+IMAGE_MODEL_FLASH = "gemini-2.5-flash-image"  # "Nano Banana" (fallback)
+VIDEO_MODEL = "veo-3.0-generate-preview"  # Veo 3
+CLAUDE_MODEL = "claude-sonnet-4-6"
+ASSET_BUCKET = "wisuno-assets"
 
 # ── Locked Wisuno brand guideline ───────────────────────────────────────────────
 # This block is prepended to EVERY prompt sent to Gemini/Veo so the brand is
@@ -60,10 +61,10 @@ BRAND_GUIDELINE_BLOCK = (
 )
 
 _BRAND_LOGO_PATH = BRAND_DIR / "White-Colored.png"
-_brand_logo_bytes: Optional[bytes] = None
+_brand_logo_bytes: bytes | None = None
 
 
-def _load_brand_logo() -> Optional[bytes]:
+def _load_brand_logo() -> bytes | None:
     """Read the Wisuno logo once and cache it. Returns None if unavailable."""
     global _brand_logo_bytes
     if _brand_logo_bytes is None:
@@ -79,8 +80,9 @@ def _apply_brand(prompt: str) -> str:
     """Lock the Wisuno brand guideline onto every generation prompt."""
     return f"{BRAND_GUIDELINE_BLOCK}{prompt}"
 
+
 # ── Gemini client (lazy singleton) ────────────────────────────────────────────
-_genai_client: Optional[genai.Client] = None
+_genai_client: genai.Client | None = None
 
 
 def _client() -> genai.Client:
@@ -96,20 +98,22 @@ def _client() -> genai.Client:
 def _is_overloaded(exc: Exception) -> bool:
     """True for transient 'model overloaded' / rate-limit style errors."""
     text = str(exc).lower()
-    return any(s in text for s in ("503", "unavailable", "overloaded", "high demand", "429", "resource_exhausted"))
+    return any(
+        s in text for s in ("503", "unavailable", "overloaded", "high demand", "429", "resource_exhausted")
+    )
 
 
 # ── Video job store (in-memory; the app runs a single uvicorn worker) ──────────
 # job_id -> {status: rendering|done|error, url, error, prompt, session_id, persisted}
-VIDEO_JOBS: Dict[str, Dict[str, Any]] = {}
+VIDEO_JOBS: dict[str, dict[str, Any]] = {}
 
 
-def get_video_job(job_id: str) -> Optional[Dict[str, Any]]:
+def get_video_job(job_id: str) -> dict[str, Any] | None:
     return VIDEO_JOBS.get(job_id)
 
 
 # ── Claude tool schemas ───────────────────────────────────────────────────────
-TOOLS: List[Dict[str, Any]] = [
+TOOLS: list[dict[str, Any]] = [
     {
         "name": "generate_image",
         "description": (
@@ -184,8 +188,8 @@ TOOLS: List[Dict[str, Any]] = [
 
 
 # ── Image generation (synchronous, blocking — run via asyncio.to_thread) ──────
-def _extract_image_bytes(response) -> Optional[bytes]:
-    for cand in (response.candidates or []):
+def _extract_image_bytes(response) -> bytes | None:
+    for cand in response.candidates or []:
         if not cand.content or not cand.content.parts:
             continue
         for part in cand.content.parts:
@@ -195,25 +199,26 @@ def _extract_image_bytes(response) -> Optional[bytes]:
     return None
 
 
-def _build_image_contents(prompt: str, reference_images: Optional[List[Tuple[bytes, str]]]) -> List[Any]:
+def _build_image_contents(prompt: str, reference_images: list[tuple[bytes, str]] | None) -> list[Any]:
     """
     Compose the Gemini `contents`: the brand-locked prompt, the Wisuno logo (so it is
     composited onto the asset), and any user-uploaded reference images for image-to-image.
     """
-    contents: List[Any] = [_apply_brand(prompt)]
+    contents: list[Any] = [_apply_brand(prompt)]
     logo = _load_brand_logo()
     if logo:
         contents.append(types.Part.from_bytes(data=logo, mime_type="image/png"))
-    for ref_bytes, ref_mime in (reference_images or []):
+    for ref_bytes, ref_mime in reference_images or []:
         contents.append(types.Part.from_bytes(data=ref_bytes, mime_type=ref_mime or "image/png"))
     return contents
 
 
-def _generate_image_blocking(prompt: str, aspect_ratio: str,
-                             reference_images: Optional[List[Tuple[bytes, str]]] = None) -> str:
+def _generate_image_blocking(
+    prompt: str, aspect_ratio: str, reference_images: list[tuple[bytes, str]] | None = None
+) -> str:
     """Generate an image and return its public Supabase URL. Raises on hard failure."""
     client = _client()
-    last_exc: Optional[Exception] = None
+    last_exc: Exception | None = None
     contents = _build_image_contents(prompt, reference_images)
 
     # 1) Try Nano Banana Pro (with aspect-ratio control), retrying transient overloads.
@@ -283,15 +288,16 @@ def _store_image(image_bytes: bytes) -> str:
 
 
 # ── Video generation (async job) ──────────────────────────────────────────────
-def _generate_video_blocking(prompt: str, aspect_ratio: str, job_id: str,
-                             reference_images: Optional[List[Tuple[bytes, str]]] = None) -> str:
+def _generate_video_blocking(
+    prompt: str, aspect_ratio: str, job_id: str, reference_images: list[tuple[bytes, str]] | None = None
+) -> str:
     """Generate a Veo 3 video, upload it, and return its public Supabase URL."""
     client = _client()
 
     # Veo accepts only a single image input. Reserve it for the user's uploaded
     # reference (image-to-video first frame) when present; the logo is described in
     # the brand-locked prompt text instead.
-    gen_kwargs: Dict[str, Any] = {
+    gen_kwargs: dict[str, Any] = {
         "model": VIDEO_MODEL,
         "prompt": _apply_brand(prompt),
         "config": types.GenerateVideosConfig(
@@ -346,17 +352,24 @@ def _generate_video_blocking(prompt: str, aspect_ratio: str, job_id: str,
     return url
 
 
-async def _run_video_job(job_id: str, prompt: str, aspect_ratio: str,
-                         reference_images: Optional[List[Tuple[bytes, str]]] = None) -> None:
+async def _run_video_job(
+    job_id: str, prompt: str, aspect_ratio: str, reference_images: list[tuple[bytes, str]] | None = None
+) -> None:
     try:
-        url = await asyncio.to_thread(_generate_video_blocking, prompt, aspect_ratio, job_id, reference_images)
+        url = await asyncio.to_thread(
+            _generate_video_blocking, prompt, aspect_ratio, job_id, reference_images
+        )
         VIDEO_JOBS[job_id].update(status="done", url=url, error=None)
         logger.info("Video job %s finished: %s", job_id, url)
         # Log to the per-user dashboard history (non-fatal on failure).
         try:
-            log_job(job_id, "gen_video", "done",
-                    {"type": "video", "url": url, "prompt": prompt},
-                    user_id=VIDEO_JOBS[job_id].get("user_id"))
+            log_job(
+                job_id,
+                "gen_video",
+                "done",
+                {"type": "video", "url": url, "prompt": prompt},
+                user_id=VIDEO_JOBS[job_id].get("user_id"),
+            )
         except Exception:  # noqa: BLE001
             logger.exception("Failed to log gen_video to history")
     except Exception as exc:  # noqa: BLE001
@@ -365,9 +378,13 @@ async def _run_video_job(job_id: str, prompt: str, aspect_ratio: str,
 
 
 # ── Tool execution ────────────────────────────────────────────────────────────
-async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optional[str],
-                        user_id: Optional[str] = None,
-                        reference_images: Optional[List[Tuple[bytes, str]]] = None) -> Tuple[str, Optional[str]]:
+async def _execute_tool(
+    name: str,
+    tool_input: dict[str, Any],
+    session_id: str | None,
+    user_id: str | None = None,
+    reference_images: list[tuple[bytes, str]] | None = None,
+) -> tuple[str, str | None]:
     """Run a tool. Returns (text_result_for_claude, started_video_job_id_or_None)."""
     # Honour Claude's choice to ignore the upload (default: use it when present).
     use_ref = tool_input.get("use_reference_image", True)
@@ -380,8 +397,13 @@ async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optio
             url = await asyncio.to_thread(_generate_image_blocking, prompt, aspect, refs)
             # Log to the per-user dashboard history (non-fatal on failure).
             try:
-                log_job(uuid.uuid4().hex, "gen_image", "done",
-                        {"type": "image", "url": url, "prompt": prompt}, user_id=user_id)
+                log_job(
+                    uuid.uuid4().hex,
+                    "gen_image",
+                    "done",
+                    {"type": "image", "url": url, "prompt": prompt},
+                    user_id=user_id,
+                )
             except Exception:  # noqa: BLE001
                 logger.exception("Failed to log gen_image to history")
             return (
@@ -418,10 +440,14 @@ async def _execute_tool(name: str, tool_input: Dict[str, Any], session_id: Optio
 
 
 # ── Chat entry point ──────────────────────────────────────────────────────────
-async def chat(messages: List[Dict[str, Any]], system_prompt: str = "",
-               session_id: Optional[str] = None, user_id: Optional[str] = None,
-               reference_images: Optional[List[Tuple[bytes, str]]] = None,
-               web_enabled: bool = False) -> Dict[str, Any]:
+async def chat(
+    messages: list[dict[str, Any]],
+    system_prompt: str = "",
+    session_id: str | None = None,
+    user_id: str | None = None,
+    reference_images: list[tuple[bytes, str]] | None = None,
+    web_enabled: bool = False,
+) -> dict[str, Any]:
     """
     Run the Claude tool-use loop with the Gemini generation tools.
     Returns {"reply": str, "video_jobs": [job_id, ...]}.
@@ -432,7 +458,7 @@ async def chat(messages: List[Dict[str, Any]], system_prompt: str = "",
 
     anthropic = AsyncAnthropic(api_key=anthropic_api_key)
     current_messages = list(messages)
-    started_video_jobs: List[str] = []
+    started_video_jobs: list[str] = []
 
     # Offer Claude the native server-side web search tool when the user enabled it.
     # Anthropic executes it server-side; result blocks come back as server_tool_use /
@@ -460,13 +486,16 @@ async def chat(messages: List[Dict[str, Any]], system_prompt: str = "",
             if block.type == "tool_use":
                 logger.info("Claude invoking tool: %s", block.name)
                 result_text, vjob = await _execute_tool(
-                    block.name, block.input, session_id, user_id, reference_images)
+                    block.name, block.input, session_id, user_id, reference_images
+                )
                 if vjob:
                     started_video_jobs.append(vjob)
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": result_text,
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result_text,
+                    }
+                )
 
         current_messages.append({"role": "user", "content": tool_results})
