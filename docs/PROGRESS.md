@@ -2,6 +2,10 @@
 
 Running log of what was done, newest first.
 
+## 2026-10-27 - Railway build fix (fix/railway-onnxruntime-cuda-skip)
+- Railway build of main failed at `npm install -g hyperframes@0.7.18`: its dependency `onnxruntime-node` could not look up its CUDA package on NuGet and npm exited 1. Unrelated to the dev-database PR that triggered the build.
+- Dockerfile: `ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip` before that step (the image has no GPU). The hyperframes pin is unchanged.
+
 ## 2026-10-27 - Dev database (chore/dev-database)
 - `supabase/schema.sql`: schema-only dump of production (`supabase db dump --linked`, no data). Production was only read.
 - Contents: tables `chat_sessions`, `chat_messages`, `jobs`; RLS enabled on all three, each with an open `USING (true) WITH CHECK (true)` policy (copied as-is from production, so no per-user isolation yet); no functions or triggers; extensions `pg_stat_statements`, `pgcrypto`, `supabase_vault`, `uuid-ossp`.
