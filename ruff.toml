@@ -5,6 +5,11 @@ extend-exclude = ["studio/repos", ".venv", "implementation_plan.md"]  # last is 
 [lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[lint.isort]
+# The repo-level supabase/ folder (CLI project: schema.sql) would otherwise make
+# ruff treat the supabase SDK as first-party and reorder its imports.
+known-third-party = ["supabase"]
+
 [lint.flake8-bugbear]
 # FastAPI dependency markers are meant to be used as argument defaults.
 extend-immutable-calls = [

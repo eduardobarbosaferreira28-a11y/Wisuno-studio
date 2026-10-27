@@ -9,3 +9,6 @@ output/
 !.env.example
 gitleaks-report.json
 .claude/skills
+
+# Supabase CLI local link state
+supabase/.temp/
