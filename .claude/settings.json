@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "deny": ["Read(./.env)", "Read(./.env.*)", "Edit(./compliance/**)", "Edit(./studio/repos/**)", "Bash(git push origin main:*)", "Bash(git push --force:*)", "Bash(git reset --hard:*)"],
+    "ask": ["Bash(pip install:*)", "Bash(git push:*)", "Bash(railway:*)"]
+  }
+}

@@ -7,9 +7,11 @@ Serves the frontend SPA and exposes API routers.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +31,32 @@ from logging_config import configure_logging  # noqa: E402
 from routers import setup as setup_router  # noqa: E402
 
 configure_logging()
+logger = logging.getLogger(__name__)
+
+
+def supabase_project_ref(url: str | None) -> str | None:
+    """Return the project ref from a Supabase URL (`https://<ref>.supabase.co`), or None.
+
+    Only the hostname's first label is returned, never the full URL, so nothing
+    sensitive can leak into logs.
+    """
+    if not url:
+        return None
+    host = urlparse(url.strip()).hostname or ""
+    ref = host.split(".", 1)[0]
+    return ref or None
+
+
+def log_supabase_project_ref() -> None:
+    """Log which Supabase project ref this process uses (ref only, never a key)."""
+    from config import SUPABASE_URL
+
+    ref = supabase_project_ref(SUPABASE_URL)
+    if ref:
+        logger.info("Supabase project ref in use: %s", ref)
+    else:
+        logger.warning("SUPABASE_URL not set or unparseable; no Supabase project in use")
+
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
@@ -113,6 +141,9 @@ app.include_router(higgsfield_router.router)
 @app.on_event("startup")
 async def startup_event():
     """Cleanup temporary video edit directories older than 7 days."""
+    # Show which Supabase project this process uses (ref only), so local runs can confirm dev.
+    log_supabase_project_ref()
+
     import shutil
     import time
 
