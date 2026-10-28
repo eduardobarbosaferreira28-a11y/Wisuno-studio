@@ -47,6 +47,22 @@ def supabase_project_ref(url: str | None) -> str | None:
     return ref or None
 
 
+def validate_startup_config() -> None:
+    """Refuse startup if in non-local environment and Supabase credentials are missing."""
+    env = os.getenv("ENV", "").strip().lower()
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    supabase_anon = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    if env != "local":
+        if not supabase_url or not supabase_anon:
+            logger.error(
+                "Refusing startup: Supabase environment variables missing (SUPABASE_URL=%s, SUPABASE_ANON_KEY=%s, ENV=%s)",
+                "set" if supabase_url else "missing",
+                "set" if supabase_anon else "missing",
+                env or "unset",
+            )
+            raise RuntimeError("Supabase configuration missing in non-local environment")
+
+
 def log_supabase_project_ref() -> None:
     """Log which Supabase project ref this process uses (ref only, never a key)."""
     from config import SUPABASE_URL
@@ -86,8 +102,8 @@ app.mount("/js", StaticFiles(directory=str(OLD_FRONTEND / "js")), name="js")
 
 @app.get("/api/config.js")
 def get_config_js():
-    url = os.environ.get("SUPABASE_URL", "https://wkfwjdwjpavgzugwcgte.supabase.co")
-    key = os.environ.get("SUPABASE_ANON_KEY", "sb_publishable_ch--T1W0Vpg1ULGdQH8e2g_U-rNgiiF")
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_ANON_KEY", "")
     return Response(
         content=f"window.ENV = {{ SUPABASE_URL: '{url}', SUPABASE_ANON_KEY: '{key}' }};",
         media_type="application/javascript",
@@ -140,7 +156,8 @@ app.include_router(higgsfield_router.router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Cleanup temporary video edit directories older than 7 days."""
+    """Validate startup config and cleanup temporary video edit directories older than 7 days."""
+    validate_startup_config()
     # Show which Supabase project this process uses (ref only), so local runs can confirm dev.
     log_supabase_project_ref()
 

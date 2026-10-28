@@ -2,6 +2,13 @@
 
 Running log of what was done, newest first.
 
+## 2026-10-28 — Auth fails closed (fix/001-auth-fail-closed)
+- `studio/backend/dependencies/auth.py`: `get_current_user` now fails closed. If Supabase is unconfigured, it returns a dev user ONLY when `ENV=local` and `DEV_AUTH_BYPASS=1`; otherwise it raises HTTP 503 ("Authentication service not configured"). The dev user role is "dev" by default (`is_admin` is False) and becomes "admin" only if `DEV_AUTH_ADMIN=1`. Missing credentials when Supabase is configured raises HTTP 401.
+- `studio/backend/app.py`: `validate_startup_config()` checks at startup that `SUPABASE_URL` and `SUPABASE_ANON_KEY` are present whenever `ENV != "local"`; missing variables log an error and raise `RuntimeError`, aborting startup. Removed hardcoded production default URLs from `/api/config.js`.
+- `config.py`: removed hardcoded production defaults for `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+- `.env.example`: documented `ENV`, `DEV_AUTH_BYPASS`, `DEV_AUTH_ADMIN`, and Supabase variables; added note that Railway must set `ENV=production`.
+- `tests/unit/test_auth_fail_closed.py`: 19 unit tests covering all bypass combinations, startup failure/success, role assignment, missing token 401, and token verification caching with TTL.
+
 ## 2026-10-28 - Agent tooling (chore/agent-tooling)
 - `.claude/settings.json`: Claude Code permissions block from the guide (step 5.2).
 - `scripts/new-task.ps1 -Id -Name -Type (fix|feat|chore)`: fetches origin, creates `..\wisuno-<Id>` as a worktree on `<Type>/<Id>-<Name>` from `origin/main`, copies `.env` (never read or printed), creates `.venv`, installs `requirements-dev.txt` + `studio/backend/requirements_studio.txt`, prints next steps. Refuses if the folder or branch already exists.
