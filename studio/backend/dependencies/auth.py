@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import time
 
@@ -7,7 +8,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from studio.backend.services.supabase_client import supabase
 
-security = HTTPBearer()
+logger = logging.getLogger(__name__)
+
+security = HTTPBearer(auto_error=False)
 
 # ── Token verification cache ───────────────────────────────────────────────────
 # `supabase.auth.get_user()` is a live network round-trip to Supabase's auth
@@ -76,15 +79,32 @@ def is_admin(user) -> bool:
     return bool(e and e in ADMIN_EMAILS)
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Security(security),
+):
     """
     Verifies the JWT token from the Authorization header using Supabase.
     Returns the user data if valid, otherwise raises a 401.
+    If Supabase is not configured, fails closed (503) unless ENV=local and DEV_AUTH_BYPASS=1.
     """
-    if not supabase:
-        # If Supabase is not configured yet (e.g. local testing without .env), allow bypass
-        # In production, you would strictly raise an error here.
-        return {"id": "local_dev_user", "role": "admin"}
+    env = os.getenv("ENV", "").strip().lower()
+    bypass = os.getenv("DEV_AUTH_BYPASS", "").strip()
+
+    if not credentials or not supabase:
+        if env == "local" and bypass == "1":
+            role = "admin" if os.getenv("DEV_AUTH_ADMIN", "").strip() == "1" else "dev"
+            logger.info("Local auth bypass active (ENV=local, DEV_AUTH_BYPASS=1, role=%s)", role)
+            return {"id": "local_dev_user", "role": role}
+
+        if not supabase:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service not configured",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
 
     token = credentials.credentials
 
@@ -105,7 +125,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
     except HTTPException:
         raise
     except Exception as e:
+        logger.warning("Token verification error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Authentication failed: {str(e)}",
-        )
+            detail="Authentication failed: invalid or expired token",
+        ) from None
