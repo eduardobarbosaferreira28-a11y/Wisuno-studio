@@ -35,6 +35,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# onnxruntime-node (a hyperframes dependency) tries to fetch its CUDA/GPU package from
+# NuGet at install time; a failed lookup makes npm exit 1 and breaks the build. This
+# image has no GPU, so skip that download.
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
+
 # Install hyperframes globally — PINNED. An unpinned install pulls whatever is
 # latest at build time; a newer build that seeks GSAP timelines by progress
 # (instead of absolute seconds) stretches the karaoke captions across the whole
