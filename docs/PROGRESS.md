@@ -2,6 +2,14 @@
 
 Running log of what was done, newest first.
 
+## 2026-10-28 - Agent tooling (chore/agent-tooling)
+- `.claude/settings.json`: Claude Code permissions block from the guide (step 5.2).
+- `scripts/new-task.ps1 -Id -Name -Type (fix|feat|chore)`: fetches origin, creates `..\wisuno-<Id>` as a worktree on `<Type>/<Id>-<Name>` from `origin/main`, copies `.env` (never read or printed), creates `.venv`, installs `requirements-dev.txt` + `studio/backend/requirements_studio.txt`, prints next steps. Refuses if the folder or branch already exists.
+- `scripts/end-task.ps1 -Id`: removes the worktree and local branch only after confirming the merge (branch is an ancestor of `origin/main`, or `gh pr view` reports MERGED for squash merges). No `--force`; the remote branch is left alone.
+- `studio/backend/app.py`: at startup logs `Supabase project ref in use: <ref>` (ref only, never a URL or key), or a warning if `SUPABASE_URL` is unset. Covered by `tests/unit/test_supabase_ref_logging.py`.
+- `.env.example`: comment that the local `.env` must point at `wisuno-studio-dev`.
+- Follow-up (not done here): `config.py` and `app.py` fall back to a hardcoded Supabase URL/anon key when `SUPABASE_URL` is unset; if that is production, a local run without `.env` silently uses prod. The new log line makes it visible; removing the fallback is a separate task.
+
 ## 2026-10-27 - Dev database (chore/dev-database)
 - `supabase/schema.sql`: schema-only dump of production (`supabase db dump --linked`, no data). Production was only read.
 - Contents: tables `chat_sessions`, `chat_messages`, `jobs`; RLS enabled on all three, each with an open `USING (true) WITH CHECK (true)` policy (copied as-is from production, so no per-user isolation yet); no functions or triggers; extensions `pg_stat_statements`, `pgcrypto`, `supabase_vault`, `uuid-ossp`.
